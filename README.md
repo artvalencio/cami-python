@@ -1,6 +1,6 @@
 # CaMI-Python: Causality toolbox for Python.
 
-UNDER DEVELOPMENT
+#UNDER DEVELOPMENT
 
 This package provides functions for dynamical and causality
 investigation using information theory and nonlinear time-series
@@ -11,7 +11,7 @@ analysis tools
 
 Requirements:
 
-This package requires previous installation of Python>=3.6, numpy and pandas.
+This package requires previous installation of Python>=3.6, numpy, pandas and scipy.
 
 -----------------------------------------------------------------------------
 -----------------------------------------------------------------------------
@@ -53,7 +53,7 @@ Institutions:
 
 Funders: FAPESP (S. Paulo Research Foundation), Brazil (2018-onwards). CNPq (National Council for Scientific and Technologic Development), Brazil (2015-2018).
 
-Acknowledgements: Arthur Valencio is supported by the FAPESP grant 2018/09900-8 and 	     acknowledges this work as part of the activities of the FAPESP Research 	     Innovation and Dissemination Center for Neuromathematics (grant 2013/07699-0, S. Paulo Research Foundation). A.V. contributions are partly derived from previous research funded by CNPq grant 206246/2014-5. N.V. is supported by CNPq research productivity fellowship (grant ). N.V. and M.S.B. are supported by The Royal Society (grant ).
+Acknowledgements: Arthur Valencio is supported by the FAPESP grant 2018/09900-8 and acknowledges this work as part of the activities of the FAPESP Research, Innovation and Dissemination Center for Neuromathematics (grant 2013/07699-0, S. Paulo Research Foundation). A.V. contributions are partly derived from previous research funded by CNPq grant 206246/2014-5. N.V. is supported by CNPq research productivity fellowship (grant 310976/2017-0). N.V. and M.S.B. are supported by The Royal Society (grant  CHL/R1/180122).
 
 Licence text:
 
