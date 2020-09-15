@@ -127,7 +127,7 @@ def cami(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=None,u
                 if (p_xp[i]*p_ypf[j,k]>1e-14) and (p_xypf[i,j,k]>1e-14):
                     if units=='nat':
                         pcami_xy[i,j,k]=p_xypf[i,j,k]*np.log(p_xypf[i,j,k]/(p_xp[i]*p_ypf[j,k]))
-                    elif units='ban':
+                    elif units=='ban':
                         pcami_xy[i,j,k]=p_xypf[i,j,k]*np.log10(p_xypf[i,j,k]/(p_xp[i]*p_ypf[j,k]))
                     else:
                         pcami_xy[i,j,k]=p_xypf[i,j,k]*np.log2(p_xypf[i,j,k]/(p_xp[i]*p_ypf[j,k]))

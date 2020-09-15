@@ -121,12 +121,12 @@ def entropy(x,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=None,
     #Generating the symbolic sequences
     def getsequence(x,xpart,tslen,partlen):
         Sx=np.ones(tslen)*-1
-        for n in range(tslen) #assign data points to partition symbols in x
-            for i in range(partlen)
-                if x[n]<xpart[i]
+        for n in range(tslen): #assign data points to partition symbols in x
+            for i in range(partlen):
+                if x[n]<xpart[i]:
                     Sx[n]=i-1
                     break
-            if Sx[n]==-1
+            if Sx[n]==-1:
                 Sx[n]=n_symbols-1
         return Sx     
     if symbolic_type=='equal-divs' or symbolic_type=='equal-points':
@@ -175,7 +175,7 @@ def entropy(x,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=None,
         if p_x[i]>1e-14:
             if units=='nat':
                 h[i]=-p_x[i]*np.log(p_x[i])
-            elif units='ban':
+            elif units=='ban':
                 h[i]=-p_x[i]*np.log10(p_x[i])
             else:
                 h[i]=-p_x[i]*np.log2(p_x[i])

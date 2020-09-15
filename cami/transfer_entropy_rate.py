@@ -70,7 +70,7 @@ def transfer_entropy_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,units
     '''
     #import libraries
     import matplotlib.pyplot as plt
-    from tkinter import *
+    from tkinter import Tk,Label,Button,Entry
     import numpy as np
     import pandas as pd
     import cami

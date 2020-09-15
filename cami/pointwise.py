@@ -1,4 +1,4 @@
-def pointwise(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,units='bits',two_sided==False):
+def pointwise(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,units='bits',two_sided=False):
     ''' Calculates the Pointwise information
         measures between two variables given
         their observable time-series.
@@ -137,7 +137,7 @@ def pointwise(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,units
         raise TypeError('Error: Symbolic length must be int or list/tuple with 2 or 3 elements. See help on function')
 
     #get box names and probabilities
-    def full_get_prob(Sx,Sy,n_symbols=2,tau=1,lx,ly):
+    def full_get_prob(Sx,Sy,lx,ly,n_symbols=2,tau=1):
         #initializing boxes
         phi_x=np.nan(tslen)
         phi_yp=np.nan(tslen)
@@ -187,9 +187,9 @@ def pointwise(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,units
         p_xypf=p_xypf/sum(sum(sum(p_xypf)))
         return p_xp,p_yp,p_yf,p_ypf,p_xyp,p_xypf,phi_x,phi_yp,phi_yf
     
-    p_xp,p_yp,p_yf,p_ypf,p_xyp,p_xypf,phi_x,phi_yp,phi_yf=full_get_prob(Sx,Sy,n_symbols=n_symbols,tau=tau,lx,ly)
+    p_xp,p_yp,p_yf,p_ypf,p_xyp,p_xypf,phi_x,phi_yp,phi_yf=full_get_prob(Sx,Sy,lx,ly,n_symbols=n_symbols,tau=tau)
     if two_sided==True:
-        ip_xp,ip_yp,ip_yf,ip_ypf,ip_xyp,ip_xypf,iphi_x,iphi_yp,iphi_yf=full_get_prob(Sy,Sx,n_symbols=n_symbols,tau=tau,lx,ly)
+        ip_xp,ip_yp,ip_yf,ip_ypf,ip_xyp,ip_xypf,iphi_x,iphi_yp,iphi_yf=full_get_prob(Sy,Sx,lx,ly,n_symbols=n_symbols,tau=tau)
 
     #calculate CaMI and TE X->Y
     cami_xy=0;
@@ -285,8 +285,8 @@ def pointwise(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,units
             point_te_xy[i]=pte_xy[phi_x[pos],phi_yp[pos],phi_yf[pos]]
     if two_sided==True:
         for i in range(len(x)-lx):
-              pos=i+lx
-           if iphi_x[pos]!=np.nan and iphi_yp[pos]!=np.nan and iphi_yf[pos]!=np.nan: 
+            pos=i+lx
+            if iphi_x[pos]!=np.nan and iphi_yp[pos]!=np.nan and iphi_yf[pos]!=np.nan: 
                 point_cami_yx[i]=pcami_yx[iphi_x[pos],iphi_yp[pos],iphi_yf[pos]]
                 point_te_yx[i]=pte_yx[iphi_x[pos],iphi_yp[pos],iphi_yf[pos]]    
         point_di=point_cami_xy-point_cami_yx

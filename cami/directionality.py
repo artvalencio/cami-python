@@ -94,7 +94,7 @@ def directionality(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,
     #checking units
     if units=='bits' or units=='nat' or units=='ban':
         pass
-    else
+    else:
         raise ValueError('Units must be bits or nat or ban. See help on function.')
     #convert to symbolic sequence
     Sx,Sy=cami.symbolic_encoding(x,y,symbolic_type=symbolic_type,n_symbols=n_symbols)
@@ -120,7 +120,7 @@ def directionality(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,
                 if (p_xp[i]*p_ypf[j,k]>1e-14) and (p_xypf[i,j,k]>1e-14):
                     if units=='nat':
                         pcami_xy[i,j,k]=p_xypf[i,j,k]*np.log(p_xypf[i,j,k]/(p_xp[i]*p_ypf[j,k]))
-                    elif units=='ban':
+                    elif units=='':
                         pcami_xy[i,j,k]=p_xypf[i,j,k]*np.log10(p_xypf[i,j,k]/(p_xp[i]*p_ypf[j,k]))
                     else:
                         pcami_xy[i,j,k]=p_xypf[i,j,k]*np.log2(p_xypf[i,j,k]/(p_xp[i]*p_ypf[j,k]))

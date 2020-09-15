@@ -107,8 +107,8 @@ def multithread(x,y,axis=1,symbolic_type='equal-divs',n_symbols=2,symbolic_lengt
         raise ValueError('Units must be bits or nat or ban. See help on function.')
     #convert to symbolic sequence
     x,y=np.array(x),np.array(y)
-    Sx,Sy=np.nan([len(x[:,1]),len(x[1,:])),np.nan([len(x[:,1]),len(x[1,:]))
-    for obs in range(len(x[1,:]))
+    Sx,Sy=np.nan([len(x[:,1]),len(x[1,:])]),np.nan([len(x[:,1]),len(x[1,:])])
+    for obs in range(len(x[1,:])):
         Sx[:,obs],Sy[:,obs]=cami.symbolic_encoding(x,y,symbolic_type=symbolic_type,n_symbols=n_symbols)       
 
     #get box probabilities
@@ -125,7 +125,7 @@ def multithread(x,y,axis=1,symbolic_type='equal-divs',n_symbols=2,symbolic_lengt
     else:
         raise TypeError('Error: Symbolic length must be int or list/tuple with 2 or 3 elements. See help on function')
     #get box names and probabilities
-    def full_get_prob(Sx,Sy,n_symbols=2,tau=1,lx,ly):
+    def full_get_prob(Sx,Sy,lx,ly,n_symbols=2,tau=1):
         nnodes=len(Sx[:,1])
         #initializing boxes
         phi_x=np.nan([tslen,nnodes])
@@ -180,9 +180,9 @@ def multithread(x,y,axis=1,symbolic_type='equal-divs',n_symbols=2,symbolic_lengt
         p_xypf=p_xypf/sum(sum(sum(p_xypf)))
         return p_xp,p_yp,p_yf,p_ypf,p_xyp,p_xypf,phi_x,phi_yp,phi_yf
     
-    p_xp,p_yp,p_yf,p_ypf,p_xyp,p_xypf=cami.get_prob(Sx,Sy,n_symbols=n_symbols,symbolic_length=symbolic_length,tau=tau)
+    p_xp,p_yp,p_yf,p_ypf,p_xyp,p_xypf=full_get_prob(Sx,Sy,lx,ly,n_symbols=n_symbols,tau=tau)
     if two_sided==True:
-        ip_xp,ip_yp,ip_yf,ip_ypf,ip_xyp,ip_xypf=cami.get_prob(Sy,Sx,n_symbols=n_symbols,symbolic_length=symbolic_length,tau=tau)
+        ip_xp,ip_yp,ip_yf,ip_ypf,ip_xyp,ip_xypf=full_get_prob(Sy,Sx,lx,ly,n_symbols=n_symbols,tau=tau)
     #calculate CaMI X->Y
     cami_xy=0;
     pcami_xy=np.zeros([n_symbols^lx,n_symbols^lx,n_symbols^(ly-lx)])

@@ -93,8 +93,8 @@ def joint_entropy(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,u
     #checking units
     if units=='bits' or units=='nat' or units=='ban':
         pass
-    else
-        raise ValueError('Units must be bits or nat or ban. See help on function.')
+    else:
+        raise ValueError('Units must be bits or nat or . See help on function.')
     #convert to symbolic sequence
     Sx,Sy=cami.symbolic_encoding(x,y,symbolic_type=symbolic_type,n_symbols=n_symbols)
     #calculate tau
@@ -155,7 +155,7 @@ def joint_entropy(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,u
             if p_xy[i,j]>1e-14:
                 if units=='nat':
                     h[i,j]=-p_xy[i,j]*np.log(p_xy[i,j])
-                elif units='ban':
+                elif units=='ban':
                     h[i,j]=-p_xy[i,j]*np.log10(p_xy[i,j])
                 else:
                     h[i,j]=-p_xy[i,j]*np.log2(p_xy[i,j])

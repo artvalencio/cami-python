@@ -107,19 +107,19 @@ def symbolic_encoding(x,y,symbolic_type='equal-divs',n_symbols=2):
     def getsequence(x,y,xpart,ypart,tslen,partlen):
         Sx=np.ones(tslen)*-1
         Sy=np.ones(tslen)*-1
-        for n in range(tslen) #assign data points to partition symbols in x
-            for i in range(partlen)
-                if x[n]<xpart[i]
+        for n in range(tslen): #assign data points to partition symbols in x
+            for i in range(partlen):
+                if x[n]<xpart[i]:
                     Sx[n]=i
                     break
-            if Sx[n]==-1
+            if Sx[n]==-1:
                 Sx[n]=n_symbols-1
-        for n in range(tslen) #assign data points to partition symbols in y
-            for i in range(partlen)
-                if y[n]<ypart[i]
+        for n in range(tslen): #assign data points to partition symbols in y
+            for i in range(partlen):
+                if y[n]<ypart[i]:
                     Sy[n]=i
                     break
-            if Sy[n]==-1
+            if Sy[n]==-1:
                 Sy[n]=n_symbols-1
         return Sx,Sy      
     if symbolic_type=='equal-divs' or symbolic_type=='equal-points':

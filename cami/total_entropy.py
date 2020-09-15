@@ -148,10 +148,10 @@ def total_entropy(x,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,uni
     for j in range(numelements):
         for n in range(tslen): #assign data points to partition symbols in x
             for i in range(len(xpart[:,j])):
-                if x[n,j]<xpart[i,j]
+                if x[n,j]<xpart[i,j]:
                     S[n,j]=i
                     break
-            if S[n,j]==-1
+            if S[n,j]==-1:
                 S[n,j]=n_symbols-1
     
     #get probs
