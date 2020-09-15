@@ -102,7 +102,7 @@ def cami(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=None,u
     #checking units
     if units=='bits' or units=='nat' or units=='ban':
         pass
-    else
+    else:
         raise ValueError('Units must be bits or nat or ban. See help on function.')
     #convert to symbolic sequence
     Sx,Sy=cami.symbolic_encoding(x,y,symbolic_type=symbolic_type,n_symbols=n_symbols)
