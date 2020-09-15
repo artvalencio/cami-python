@@ -103,7 +103,7 @@ def multithread(x,y,axis=1,symbolic_type='equal-divs',n_symbols=2,symbolic_lengt
     #checking units
     if units=='bits' or units=='nat' or units=='ban':
         pass
-    else
+    else:
         raise ValueError('Units must be bits or nat or ban. See help on function.')
     #convert to symbolic sequence
     x,y=np.array(x),np.array(y)
