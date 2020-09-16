@@ -89,37 +89,45 @@ def cami_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,units='bits'):
     plt.title('Check for a linear part')
     plt.draw()
 
-    #create dialog box asking where the linear portion begins and ends
-    master = Tk()
-    label=Label(master,text="Inform the linear part")
-    label.pack()
-    e1 = Entry(master)
-    msg1 = "Type L_min here (int)"
-    e1.delete(0, END)
-    e1.insert(0, msg1)
-    e1.pack()
-    e1.focus_set()
-    e2 = Entry(master)
-    msg2 = "Type L_max here (int)"
-    e2.delete(0, END)
-    e2.insert(0, msg2)
-    e2.pack()
-    e2.focus_set()
+    try: #if running straight from python, pops up an input box
+        #create dialog box asking where the linear portion begins and ends
+        master = Tk()
+        label=Label(master,text="Inform the linear part")
+        label.pack()
+        e1 = Entry(master)
+        msg1 = "Type L_min here (int)"
+        e1.delete(0, END)
+        e1.insert(0, msg1)
+        e1.pack()
+        e1.focus_set()
+        e2 = Entry(master)
+        msg2 = "Type L_max here (int)"
+        e2.delete(0, END)
+        e2.insert(0, msg2)
+        e2.pack()
+        e2.focus_set()
 
-    #callback to dialog button performs the linear regression which prints mir in turn
-    def callback():
-        #get the informed Lmin and Lmax
-        Lmin=int(e1.get())
-        Lmax=int(e2.get())
-        #calculates MIR
+        #callback to dialog button performs the linear regression which prints mir in turn
+        def callback():
+            #get the informed Lmin and Lmax
+            Lmin=int(e1.get())
+            Lmax=int(e2.get())
+            #calculates MIR
+            camir=linregress(np.arange(Lmax-Lmin+1)+Lmin,cami_val[Lmin+1:Lmax+1]).slope
+            #print results
+            print('Causal Mutual Information Rate: ', camir)
+            #close figures and dialog box
+            plt.close()
+            master.destroy()
+
+        #creates the dialog box button and run the dialog box
+        b = Button(master, text = "OK", width = 10, command = callback)
+        b.pack()
+        mainloop()
+
+    except:#if input box failed, probably is running in an interactive environment like Jupyter, where input() is fine 
+        print("Inform the linear part:")
+        Lmin=int(input("Inform L_min (int): ")
+        Lmax=int(input("Inform L_max (int): ")
         camir=linregress(np.arange(Lmax-Lmin+1)+Lmin,cami_val[Lmin+1:Lmax+1]).slope
-        #print results
         print('Causal Mutual Information Rate: ', camir)
-        #close figures and dialog box
-        plt.close()
-        master.destroy()
-
-    #creates the dialog box button and run the dialog box
-    b = Button(master, text = "OK", width = 10, command = callback)
-    b.pack()
-    mainloop()
