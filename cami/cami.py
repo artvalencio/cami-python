@@ -104,44 +104,75 @@ def cami(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=None,u
         pass
     else:
         raise ValueError('Units must be bits or nat or ban. See help on function.')
+    #interpolate missing data or trim if its in the edges
+    x,y=pd.to_numeric(x,errors='coerce'),pd.to_numeric(y,errors='coerce')
+    while np.isnan(x[0]) or np.isnan(y[0]):
+        x,y=x[1:],y[1:]
+    while np.isnan(x[-1]) or np.isnan(y[-1]):
+        x,y=x[:-1],y[:-1]
+    def interp_func(data):
+        idx_bads=np.isnan(data)
+        idx_goods=np.logical_not(idx_bads)
+        data_good=data[idx_goods]
+        interp_data=np.interp(idx_bads.nonzero()[0],idx_goods.nonzero()[0],data_good)
+        data[idx_bads]=interp_data
+        return data
+    x,y=interp_func(x),interp_func(y)
     #convert to symbolic sequence
     Sx,Sy=cami.symbolic_encoding(x,y,symbolic_type=symbolic_type,n_symbols=n_symbols)
     #calculate tau
     if tau==None:
-        xcorrel=np.correlate(x,x,mode='full')
-        xcorrel=xcorrel[len(x)-1:]/xcorrel[len(x)-1]
-        for i in range(1,len(xcorrel)):
-            if xcorrel[i-1]>0 and xcorrel[i]<=0:
-                tau=i
-                break        
+        def get_tau(data):
+            old_corr_val=1
+            tau=None
+            for i in range(1,len(data)):
+                new_corr_val=np.corrcoef(data[:-i],data[i:])[0,1]
+                if old_corr_val>0 and new_corr_val<=0:
+                    tau=i
+                    break
+                old_corr_val=new_corr_val
+            if tau==None:
+                tau=1
+            return tau
+        tau=max(get_tau(x),get_tau(y))
+        print('Selected tau=',tau,' by the method of first zero of auto-correlation',sep='')
     #get box probabilities
-    p_xp,p_yp,p_yf,p_ypf,p_xyp,p_xypf=cami.get_prob(Sx,Sy,n_symbols=n_symbols,symbolic_length=symbolic_length,tau=tau)
+    p_xp,p_yp,p_yf,p_ypf,p_xyp,p_xypf,lx,lyp,lyf=cami.get_prob(Sx,Sy,n_symbols=n_symbols,symbolic_length=symbolic_length,tau=tau)
     if two_sided==True:
-        ip_xp,ip_yp,ip_yf,ip_ypf,ip_xyp,ip_xypf=cami.get_prob(Sy,Sx,n_symbols=n_symbols,symbolic_length=symbolic_length,tau=tau)
+        ip_x,ip_yp,ip_yf,ip_ypf,ip_xyp,ip_xypf,__,__,__=cami.get_prob(Sy,Sx,n_symbols=n_symbols,symbolic_length=symbolic_length,tau=tau)
     #calculate CaMI X->Y
     cami_xy=0;
-    pcami_xy=np.zeros([n_symbols^lx,n_symbols^lx,n_symbols^(ly-lx)])
-    for i in range(n_symbols^lx):
-        for j in range(n_symbols^lx):
-            for k in range(n_symbols^(ly-lx)):
-                if (p_xp[i]*p_ypf[j,k]>1e-14) and (p_xypf[i,j,k]>1e-14):
+    pcami_xy=np.zeros([n_symbols**lx,n_symbols**lyp,n_symbols**lyf])
+    for i in range(n_symbols**lx):
+        for j in range(n_symbols**lyp):
+            for k in range(n_symbols**lyf):
+                if (p_xp[i]*p_ypf[j,k]>0) and (p_xypf[i,j,k]>0):
                     if units=='nat':
                         pcami_xy[i,j,k]=p_xypf[i,j,k]*np.log(p_xypf[i,j,k]/(p_xp[i]*p_ypf[j,k]))
                     elif units=='ban':
                         pcami_xy[i,j,k]=p_xypf[i,j,k]*np.log10(p_xypf[i,j,k]/(p_xp[i]*p_ypf[j,k]))
                     else:
-                        pcami_xy[i,j,k]=p_xypf[i,j,k]*np.log2(p_xypf[i,j,k]/(p_xp[i]*p_ypf[j,k]))
+                        try:
+                            pcami_xy[i,j,k]=p_xypf[i,j,k]*np.log2(p_xypf[i,j,k]/(p_xp[i]*p_ypf[j,k]))
+                        except:
+                            print(i,j,k)
+                            print(p_xp.shape,p_ypf.shape,p_xypf.shape,pcami_xy.shape)
+                            print(p_xp[i])
+                            print(p_ypf[j,k])
+                            print(p_xypf[i,j,k])
+                            print(np.log2(p_xypf[i,j,k]/(p_xp[i]*p_ypf[j,k])))
+                            print(pcami_xy[i,j,k])
                     cami_xy=cami_xy+pcami_xy[i,j,k];
                 else:
                     pcami_xy[i,j,k]=0
     #calculate CaMI Y->X
     if two_sided==True:
-        pcami_yx=np.zeros([n_symbols^lx,n_symbols^lx,n_symbols^(ly-lx)])
+        pcami_yx=np.zeros([n_symbols**lx,n_symbols**lyp,n_symbols**lyf])
         cami_yx=0;
-        for i in range(ns^lx):
-            for j in range(ns^lx):
-                for k in range(ns^(ly-lx)):
-                    if (ip_x[i]*ip_ypf[j,k]>1e-14) and (ip_xypf[i,j,k]>1e-14):
+        for i in range(n_symbols**lx):
+            for j in range(n_symbols**lyp):
+                for k in range(n_symbols**lyf):
+                    if (ip_x[i]*ip_ypf[j,k]>0) and (ip_xypf[i,j,k]>0):
                         if units=='nat':
                             pcami_yx[i,j,k]=ip_xypf[i,j,k]*np.log(ip_xypf[i,j,k]/(ip_x[i]*ip_ypf[j,k]))
                         elif units=='ban':

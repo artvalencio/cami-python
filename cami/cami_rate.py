@@ -127,7 +127,7 @@ def cami_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,units='bits'):
 
     except:#if input box failed, probably is running in an interactive environment like Jupyter, where input() is fine 
         print("Inform the linear part:")
-        Lmin=int(input("Inform L_min (int): ")
-        Lmax=int(input("Inform L_max (int): ")
+        Lmin=int(input("Inform L_min (int): "))
+        Lmax=int(input("Inform L_max (int): "))
         camir=linregress(np.arange(Lmax-Lmin+1)+Lmin,cami_val[Lmin+1:Lmax+1]).slope
         print('Causal Mutual Information Rate: ', camir)

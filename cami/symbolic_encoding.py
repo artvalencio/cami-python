@@ -72,8 +72,8 @@ def symbolic_encoding(x,y,symbolic_type='equal-divs',n_symbols=2):
         xsort,ysort = np.sort(x),np.sort(y)
         xpart,ypart = [],[]
         for i in range(1,n_symbols):
-            xpart.append(xsort[floor(i*tslen/n_symbols)])
-            ypart.append(ysort[floor(i*tslen/n_symbols)])
+            xpart.append(xsort[int(i*tslen/n_symbols)])
+            ypart.append(ysort[int(i*tslen/n_symbols)])
     elif symbolic_type=='equal-growth':
         xdiff,ydiff = np.diff(x),np.diff(y)
         xmin,xmax,ymin,ymax = min(xdiff),max(xdiff),min(ydiff),max(ydiff)
@@ -85,8 +85,8 @@ def symbolic_encoding(x,y,symbolic_type='equal-divs',n_symbols=2):
         xdiffsort,ydiffsort = np.sort(np.diff(x)),np.sort(np.diff(y))
         xpart,ypart = [],[]
         for i in range(1,n_symbols):
-            xpart.append(xdiffsort[floor(i*(tslen-1)/n_symbols)])
-            ypart.append(ydiffsort[floor(i*(tslen-1)/n_symbols)])
+            xpart.append(xdiffsort[int(i*(tslen-1)/n_symbols)])
+            ypart.append(ydiffsort[int(i*(tslen-1)/n_symbols)])
     elif symbolic_type=='equal-concavity':
         xdiff2,ydiff2 = np.diff(np.diff(x)),np.diff(np.diff(y))
         xmin,xmax,ymin,ymax = min(xdiff2),max(xdiff2),min(ydiff2),max(ydiff2)
@@ -98,8 +98,8 @@ def symbolic_encoding(x,y,symbolic_type='equal-divs',n_symbols=2):
         xdiff2sort,ydiff2sort = np.sort(np.diff(np.diff(x))),np.sort(np.diff(np.diff(y)))
         xpart,ypart = [],[]
         for i in range(1,n_symbols):
-            xpart.append(xdiff2sort[floor(i*(tslen-2)/n_symbols)])
-            ypart.append(ydiff2sort[floor(i*(tslen-2)/n_symbols)])
+            xpart.append(xdiff2sort[int(i*(tslen-2)/n_symbols)])
+            ypart.append(ydiff2sort[int(i*(tslen-2)/n_symbols)])
     else:
         raise ValueError('Error: Unacceptable argument of symbolic type. See help on function.')
 

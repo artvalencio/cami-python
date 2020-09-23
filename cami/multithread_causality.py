@@ -1,4 +1,4 @@
-def multithread(x,y,axis=1,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=1,units='bits',two_sided=False):
+def multithread_causality(x,y,axis=1,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=1,units='bits',two_sided=False):
     ''' Calculates Information Theory
         values based on many independent
         observation of two variables
