@@ -100,7 +100,6 @@ def get_prob(Sx,Sy,n_symbols=2,symbolic_length=1,tau=1):
     #calculating phi_yp, about the past of y
     for n in range(tau*lyp,tslen):
         phi_yp[n]=0
-        #new:
         k=0
         for i in range(n-tau*lyp,n,tau):
             phi_yp[n]=phi_yp[n]+Sy[i]*n_symbols**(k)
@@ -110,13 +109,12 @@ def get_prob(Sx,Sy,n_symbols=2,symbolic_length=1,tau=1):
     #calculating phi_yf, about the future of y
     for n in range(0,tslen-tau*lyf):
         phi_yf[n]=0
-        #new:
         k=0
         for i in range(n,n+tau*lyf,tau):
             phi_yf[n]=phi_yf[n]+Sy[i]*n_symbols**(k)
             k=k+1
         p_yf[int(phi_yf[n])]=p_yf[int(phi_yf[n])]+1
-    p_yf=p_yf/sum(p_yf);
+    p_yf=p_yf/sum(p_yf)
     #calculating joint probabilities
     for n in range(tslen):
         if not(np.isnan(phi_x[n]) or np.isnan(phi_yp[n]) or np.isnan(phi_yf[n])):

@@ -1,4 +1,4 @@
-def mutual_info_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,units='bits'):
+def mutual_info_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,L_limit=10,units='bits'):
     ''' Calculates the Mutual Information Rate
         between two variables given their
         observable time-series.
@@ -35,6 +35,12 @@ def mutual_info_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,units='bit
         resolution. If n_symbols=2, the partition is
         binary (0,1) (default). If n_symbols=3, it is ternary
         (0,1,2), and so on.
+    L_limit: int, optional
+        Limit maximum of the symbolic sequence length to calculate
+        Mutual Information from. It should be sufficient to enable
+        identification of linear MI x L section, but values too high
+        come with computational cost without significant benefits.
+        Default: 10.
     units: str, optional
         Units to be used (base of the logarithm). Options:
             - 'bits': log2 is adopted (default)
@@ -73,15 +79,30 @@ def mutual_info_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,units='bit
     import pandas as pd
     import cami
     from scipy.stats import linregress
+    
+    #interpolate missing data or trim if its in the edges
+    x,y=pd.to_numeric(x,errors='coerce'),pd.to_numeric(y,errors='coerce')
+    while np.isnan(x[0]) or np.isnan(y[0]):
+        x,y=x[1:],y[1:]
+    while np.isnan(x[-1]) or np.isnan(y[-1]):
+        x,y=x[:-1],y[:-1]
+    def interp_func(data):
+        idx_bads=np.isnan(data)
+        idx_goods=np.logical_not(idx_bads)
+        data_good=data[idx_goods]
+        interp_data=np.interp(idx_bads.nonzero()[0],idx_goods.nonzero()[0],data_good)
+        data[idx_bads]=interp_data
+        return data
+    x,y=interp_func(x),interp_func(y)
 
     #calculate mutual info as a function of symbolic length
-    mi=np.zeros(10)
-    for L in range(1,11):
+    mi=np.zeros(L_limit)
+    for L in range(1,L_limit+1):
         mi[L-1]=cami.mutual_info(x,y,symbolic_type=symbolic_type,n_symbols=n_symbols,symbolic_length=L,tau=tau,units=units)
 
     #plot MI vs L
     plt.ion()
-    plt.plot(np.arange(10)+1,mi)
+    plt.plot(np.arange(L_limit)+1,mi)
     plt.xlabel('Symbolic length (L)')
     plt.ylabel('Mutual Information [',units,']')
     plt.title('Check for a linear part')

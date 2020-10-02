@@ -141,7 +141,7 @@ def cami(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=None,u
     if two_sided==True:
         ip_x,ip_yp,ip_yf,ip_ypf,ip_xyp,ip_xypf,__,__,__=cami.get_prob(Sy,Sx,n_symbols=n_symbols,symbolic_length=symbolic_length,tau=tau)
     #calculate CaMI X->Y
-    cami_xy=0;
+    cami_xy=0
     pcami_xy=np.zeros([n_symbols**lx,n_symbols**lyp,n_symbols**lyf])
     for i in range(n_symbols**lx):
         for j in range(n_symbols**lyp):
@@ -152,23 +152,14 @@ def cami(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=None,u
                     elif units=='ban':
                         pcami_xy[i,j,k]=p_xypf[i,j,k]*np.log10(p_xypf[i,j,k]/(p_xp[i]*p_ypf[j,k]))
                     else:
-                        try:
-                            pcami_xy[i,j,k]=p_xypf[i,j,k]*np.log2(p_xypf[i,j,k]/(p_xp[i]*p_ypf[j,k]))
-                        except:
-                            print(i,j,k)
-                            print(p_xp.shape,p_ypf.shape,p_xypf.shape,pcami_xy.shape)
-                            print(p_xp[i])
-                            print(p_ypf[j,k])
-                            print(p_xypf[i,j,k])
-                            print(np.log2(p_xypf[i,j,k]/(p_xp[i]*p_ypf[j,k])))
-                            print(pcami_xy[i,j,k])
-                    cami_xy=cami_xy+pcami_xy[i,j,k];
+                        pcami_xy[i,j,k]=p_xypf[i,j,k]*np.log2(p_xypf[i,j,k]/(p_xp[i]*p_ypf[j,k]))
+                    cami_xy=cami_xy+pcami_xy[i,j,k]
                 else:
                     pcami_xy[i,j,k]=0
     #calculate CaMI Y->X
     if two_sided==True:
         pcami_yx=np.zeros([n_symbols**lx,n_symbols**lyp,n_symbols**lyf])
-        cami_yx=0;
+        cami_yx=0
         for i in range(n_symbols**lx):
             for j in range(n_symbols**lyp):
                 for k in range(n_symbols**lyf):

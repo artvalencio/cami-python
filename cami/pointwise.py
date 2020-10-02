@@ -1,4 +1,4 @@
-def pointwise(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,units='bits',two_sided=False):
+def pointwise(x,y,method='normalized',symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=None,units='bits',two_sided=False,make_plot=True):
     ''' Calculates the Pointwise information
         measures between two variables given
         their observable time-series.
@@ -9,6 +9,13 @@ def pointwise(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,units
         The first time-series
     y: list, tuple, np.array, pd.Series
         The second time-series
+    method: str, optional
+        Whether to calculate the (regular) pointwise information measures
+        or the normalized information measures (default). Options:
+            - 'normalized' or 'normalised' (default): calculates the
+                pointwise information measures normalized by -1/log(joint_prob)
+            - 'raw' or 'regular' or 'non-normalized' or 'non-normalised': does not
+                perfom any normalization procedure
     symbolic-type: str, optional
         Type of symbolic encoding. Options:
             - 'equal-divs': equal-sized divisions are
@@ -56,14 +63,19 @@ def pointwise(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,units
                 e.g.: symbolic-length=(3,2,1) means 3 points of x and
                     2 points of y might predict 1 point of the future
                     of y
+    tau: int, None, optional
+        Time-delay of reconstruction via method of embedding (Takens'), in number
+        of steps. default=None (first zero correlation crossing).
     units: str, optional
         Units to be used (base of the logarithm). Options:
-            - 'bits': log2 is adopted (default)
-            - 'nat': ln is adopted
-            - 'ban': log10 is adopted
+            - 'bit' or 'bits': log2 is adopted (default)
+            - 'nat' or 'nats': ln is adopted
+            - 'ban' or 'bans': log10 is adopted
     two_sided: bool, optional
         Whether to calculate in the directions X->Y and Y->X or only on X->Y.
         Default: False (only X->Y)
+    make_plot: bool,optional
+        Whether to make scatter plot with the results or not. Default: True.
     
     Returns
     -------
@@ -102,107 +114,221 @@ def pointwise(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,units
     Example
     -------
     point_mi,point_cami_xy,point_te_xy,point_cami_yx,point_te_yx,point_di = pointwise(x,y,
-        symbolic_type='equal-points',n_symbols=10,symbolic_length=1,two_sided=True)
+        symbolic_type='equal-points',n_symbols=10,symbolic_length=1,two_sided=True,make_plot=True)
     '''
     import numpy as np
     import pandas as pd
     import cami
     #checking units
-    if units=='bits' or units=='nat' or units=='ban':
+    if units=='bit' or units=='bits' or units=='nat' or units=='nats' or units=='ban' or units=='bans':
         pass
     else:
         raise ValueError('Units must be bits or nat or ban. See help on function.')
+    #interpolate missing data or trim if its in the edges
+    x,y=pd.to_numeric(x,errors='coerce'),pd.to_numeric(y,errors='coerce')
+    while np.isnan(x[0]) or np.isnan(y[0]):
+        x,y=x[1:],y[1:]
+    while np.isnan(x[-1]) or np.isnan(y[-1]):
+        x,y=x[:-1],y[:-1]
+    def interp_func(data):
+        idx_bads=np.isnan(data)
+        idx_goods=np.logical_not(idx_bads)
+        data_good=data[idx_goods]
+        interp_data=np.interp(idx_bads.nonzero()[0],idx_goods.nonzero()[0],data_good)
+        data[idx_bads]=interp_data
+        return data
+    x,y=interp_func(x),interp_func(y)
     #convert to symbolic sequence
     Sx,Sy=cami.symbolic_encoding(x,y,symbolic_type=symbolic_type,n_symbols=n_symbols)
     #calculate tau
     if tau==None:
-        xcorrel=np.correlate(x,x,mode='full')
-        xcorrel=xcorrel[len(x)-1:]/xcorrel[len(x)-1]
-        for i in range(1,len(xcorrel)):
-            if xcorrel[i-1]>0 and xcorrel[i]<=0:
-                tau=i
-                break
+        def get_tau(data):
+            old_corr_val=1
+            tau=None
+            for i in range(1,len(data)):
+                new_corr_val=np.corrcoef(data[:-i],data[i:])[0,1]
+                if old_corr_val>0 and new_corr_val<=0:
+                    tau=i
+                    break
+                old_corr_val=new_corr_val
+            if tau==None:
+                tau=1
+            return tau
+        tau=max(get_tau(x),get_tau(y))
+        print('Selected tau=',tau,' by the method of first zero of auto-correlation',sep='')
             
-    #getting symbolic lengths
+    #getting symbolic lengths (checking consistency)
     if type(symbolic_length)==int:
-        lx,ly = symbolic_length, 2*symbolic_length
+        lx,lyp,lyf = symbolic_length,symbolic_length,symbolic_length
     elif type(symbolic_length)==tuple or type(symbolic_length)==list:
         if len(symbolic_length)==2:
-            lx,ly = symbolic_length[0], symbolic_length[1]*2
+            lx,lyp,lyf = symbolic_length[0],symbolic_length[1],symbolic_length[1]
         elif len(symbolic_length)==3:
-            lx,ly = symbolic_length[0], symbolic_length[1]+symbolic_length[2]
+            lx,lyp,lyf = symbolic_length[0],symbolic_length[1],symbolic_length[2]
         else:
             raise TypeError('Error: Symbolic length must be int or list/tuple with 2 or 3 elements. See help on function')
     else:
         raise TypeError('Error: Symbolic length must be int or list/tuple with 2 or 3 elements. See help on function')
-
+    
     #get box names and probabilities
-    def full_get_prob(Sx,Sy,lx,ly,n_symbols=2,tau=1):
+    def full_get_prob(Sx,Sy,lx,lyp,lyf,n_symbols=2,tau=1):
+        tslen=len(Sx)
         #initializing boxes
-        phi_x=np.nan(tslen)
-        phi_yp=np.nan(tslen)
-        phi_yf=np.nan(tslen)        
+        phi_x=np.full(tslen,np.nan)
+        phi_yp=np.full(tslen,np.nan)
+        phi_yf=np.full(tslen,np.nan)        
         #initializing probabilities of boxes
         #note: n_points=tslen-tau*ly-1;
-        p_xp=np.zeros(n_symbols^lx+1)
-        p_yp=np.zeros(n_symbols^lx+1)
-        p_yf=np.zeros(n_symbols^(ly-lx)+1)
-        p_ypf=np.zeros([n_symbols^lx+1,n_symbols^(ly-lx)+1])
-        p_xyp=np.zeros([n_symbols^lx+1,n_symbols^lx+1])
-        p_xypf=np.zeros([n_symbols^lx+1,n_symbols^lx+1,n_symbols^(ly-lx)+1])
+        p_xp=np.zeros(n_symbols**lx)
+        p_yp=np.zeros(n_symbols**lyp)
+        p_yf=np.zeros(n_symbols**lyf)
+        p_ypf=np.zeros([n_symbols**lyp,n_symbols**lyf])
+        p_xyp=np.zeros([n_symbols**lx,n_symbols**lyp])
+        p_xypf=np.zeros([n_symbols**lx,n_symbols**lyp,n_symbols**lyf])
         #calculating phi_x, about the past of x
-        for n in range(tau*lx+1,tslen-tau*(ly-lx)):
+        for n in range(tau*lx,tslen):
             phi_x[n]=0
-            k=n-lx#running index for sum over tau-spaced elements
-            for i in range(n-tau*lx,n-tau,tau):
-                phi_x[n]=phi_x[n]+Sx[k]*n_symbols^((n-1)-k)
+            k=0
+            for i in range(n-tau*lx,n,tau):
+                phi_x[n]=phi_x[n]+Sx[i]*n_symbols**(k)#phi is the partition box name of the sequence: e.g.: (|0|..tau..|1|..tau..|0|) => box phi=2
                 k=k+1
-            p_xp[phi_x[n]]=p_xp[phi_x[n]]+1
+            p_xp[int(phi_x[n])]=p_xp[int(phi_x[n])]+1
         p_xp=p_xp/sum(p_xp)
         #calculating phi_yp, about the past of y
-        for n in range(tau*lx+1,tslen-tau*(ly-lx)):
+        for n in range(tau*lyp,tslen):
             phi_yp[n]=0
-            k=n-lx
-            for i in range(n-tau*lx,n-tau,tau):
-                phi_yp[n]=phi_yp[n]+Sy[k]*n_symbols^((n-1)-k)
+            k=0
+            for i in range(n-tau*lyp,n,tau):
+                phi_yp[n]=phi_yp[n]+Sy[i]*n_symbols**(k)
                 k=k+1
-            p_yp[phi_yp[n]]=p_yp[phi_yp[n]]+1
+            p_yp[int(phi_yp[n])]=p_yp[int(phi_yp[n])]+1
         p_yp=p_yp/sum(p_yp)
         #calculating phi_yf, about the future of y
-        for n in range(tau*lx+1,tslen-tau*(ly-lx)):
+        for n in range(0,tslen-tau*lyf):
             phi_yf[n]=0
-            k=n
-            for i in range(n,n+tau*(ly-lx)-1,tau):
-                phi_yf[n]=phi_yf[n]+Sy[k]*n_symbols^((n+(ly-lx)-1)-k)
+            k=0
+            for i in range(n,n+tau*lyf,tau):
+                phi_yf[n]=phi_yf[n]+Sy[i]*n_symbols**(k)
                 k=k+1
-            p_yf[phi_yf[n]]=p_yf[phi_yf[n]]+1
-        p_yf=p_yf/sum(p_yf);
+            p_yf[int(phi_yf[n])]=p_yf[int(phi_yf[n])]+1
+        p_yf=p_yf/sum(p_yf)
         #calculating joint probabilities
-        for n in range(tau*lx+1,tslen-tau*(ly-lx)):
-            p_ypf[phi_yp[n],phi_yf[n]]=p_ypf[phi_yp[n],phi_yf[n]]+1
-            p_xyp[phi_x[n],phi_yp[n]]=p_xyp[phi_x[n],phi_yp[n]]+1
-            p_xypf[phi_x[n],phi_yp[n],phi_yf[n]]=p_xypf[phi_x[n],phi_yp[n],phi_yf[n]]+1
+        for n in range(tslen):
+            if not(np.isnan(phi_x[n]) or np.isnan(phi_yp[n]) or np.isnan(phi_yf[n])):
+                p_ypf[int(phi_yp[n]),int(phi_yf[n])]=p_ypf[int(phi_yp[n]),int(phi_yf[n])]+1
+                p_xyp[int(phi_x[n]),int(phi_yp[n])]=p_xyp[int(phi_x[n]),int(phi_yp[n])]+1
+                p_xypf[int(phi_x[n]),int(phi_yp[n]),int(phi_yf[n])]=p_xypf[int(phi_x[n]),int(phi_yp[n]),int(phi_yf[n])]+1
         p_ypf=p_ypf/sum(sum(p_ypf))
         p_xyp=p_xyp/sum(sum(p_xyp))
         p_xypf=p_xypf/sum(sum(sum(p_xypf)))
         return p_xp,p_yp,p_yf,p_ypf,p_xyp,p_xypf,phi_x,phi_yp,phi_yf
     
-    p_xp,p_yp,p_yf,p_ypf,p_xyp,p_xypf,phi_x,phi_yp,phi_yf=full_get_prob(Sx,Sy,lx,ly,n_symbols=n_symbols,tau=tau)
+    p_xp,p_yp,p_yf,p_ypf,p_xyp,p_xypf,phi_x,phi_yp,phi_yf=full_get_prob(Sx,Sy,lx,lyp,lyf,n_symbols=n_symbols,tau=tau)
     if two_sided==True:
-        ip_xp,ip_yp,ip_yf,ip_ypf,ip_xyp,ip_xypf,iphi_x,iphi_yp,iphi_yf=full_get_prob(Sy,Sx,lx,ly,n_symbols=n_symbols,tau=tau)
+        ip_xp,ip_yp,ip_yf,ip_ypf,ip_xyp,ip_xypf,iphi_x,iphi_yp,iphi_yf=full_get_prob(Sy,Sx,lx,lyp,lyf,n_symbols=n_symbols,tau=tau)
 
-    #calculate CaMI and TE X->Y
-    cami_xy=0;
-    pcami_xy=np.zeros([n_symbols^lx,n_symbols^lx,n_symbols^(ly-lx)])
-    pte_xy=np.zeros([n_symbols^lx,n_symbols^lx,n_symbols^(ly-lx)])
-    for i in range(n_symbols^lx):
-        for j in range(n_symbols^lx):
-            for k in range(n_symbols^(ly-lx)):
-                if (p_xp[i]*p_ypf[j,k]>1e-14) and (p_xypf[i,j,k]>1e-14):
-                    if units=='nat':
+    
+
+    #calculate CaMI X->Y
+    cami_xy=0
+    pcami_xy=np.zeros([n_symbols**lx,n_symbols**lyp,n_symbols**lyf])
+    pte_xy=np.zeros([n_symbols**lx,n_symbols**lyp,n_symbols**lyf])
+    for i in range(n_symbols**lx):
+        for j in range(n_symbols**lyp):
+            for k in range(n_symbols**lyf):
+                if (p_xp[i]*p_ypf[j,k]>0) and (p_xypf[i,j,k]>0):
+                    if units=='nat' or units=='nats':
                         pcami_xy[i,j,k]=np.log(p_xypf[i,j,k]/(p_xp[i]*p_ypf[j,k]))
                         pte_xy[i,j,k]=np.log((p_xypf[i,j,k]*p_yp[j])/(p_xyp[i,j]*p_ypf[j,k]))
-                    elif units=='ban':
+                    elif units=='ban' or units=='bans':
+                        pcami_xy[i,j,k]=np.log10(p_xypf[i,j,k]/(p_xp[i]*p_ypf[j,k]))
+                        pte_xy[i,j,k]=np.log10((p_xypf[i,j,k]*p_yp[j])/(p_xyp[i,j]*p_ypf[j,k]))
+                    else:
+                        pcami_xy[i,j,k]=np.log2(p_xypf[i,j,k]/(p_xp[i]*p_ypf[j,k]))
+                        pte_xy[i,j,k]=np.log2((p_xypf[i,j,k]*p_yp[j])/(p_xyp[i,j]*p_ypf[j,k]))
+                    cami_xy=cami_xy+p_xypf[i,j,k]*pcami_xy[i,j,k]
+                    if not(method=='raw' or method=='regular' or method=='non-normalized' or method=='non-normalised'):
+                        if units=='nat' or units=='nats':
+                            pcami_xy[i,j,k]=-pcami_xy[i,j,k]/np.log(p_xypf[i,j,k])
+                            pte_xy[i,j,k]=-pte_xy[i,j,k]/np.log(p_xypf[i,j,k])
+                        elif units=='ban' or units=='bans':
+                            pcami_xy[i,j,k]=-pcami_xy[i,j,k]/np.log10(p_xypf[i,j,k])
+                            pte_xy[i,j,k]=-pte_xy[i,j,k]/np.log10(p_xypf[i,j,k])
+                        else:
+                            pcami_xy[i,j,k]=-pcami_xy[i,j,k]/np.log2(p_xypf[i,j,k])
+                            pte_xy[i,j,k]=-pte_xy[i,j,k]/np.log2(p_xypf[i,j,k])
+                else:
+                    pcami_xy[i,j,k]=0
+    #calculate CaMI Y->X
+    if two_sided==True:
+        pcami_yx=np.zeros([n_symbols**lx,n_symbols**lyp,n_symbols**lyf])
+        pte_yx=np.zeros([n_symbols**lx,n_symbols**lyp,n_symbols**lyf])
+        cami_yx=0
+        for i in range(n_symbols**lx):
+            for j in range(n_symbols**lyp):
+                for k in range(n_symbols**lyf):
+                    if (ip_xp[i]*ip_ypf[j,k]>0) and (ip_xypf[i,j,k]>0):
+                        if units=='nat' or units=='nats':
+                            pcami_yx[i,j,k]=np.log(ip_xypf[i,j,k]/(ip_xp[i]*ip_ypf[j,k]))
+                            pte_yx[i,j,k]=np.log((ip_xypf[i,j,k]*ip_yp[j])/(ip_xyp[i,j]*ip_ypf[j,k]))
+                        elif units=='ban' or units=='bans':
+                            pcami_yx[i,j,k]=np.log10(ip_xypf[i,j,k]/(ip_xp[i]*ip_ypf[j,k]))
+                            pte_yx[i,j,k]=np.log10((ip_xypf[i,j,k]*ip_yp[j])/(ip_xyp[i,j]*ip_ypf[j,k]))
+                        else:
+                            pcami_yx[i,j,k]=np.log2(ip_xypf[i,j,k]/(ip_xp[i]*ip_ypf[j,k]))
+                            pte_yx[i,j,k]=np.log2((ip_xypf[i,j,k]*ip_yp[j])/(ip_xyp[i,j]*ip_ypf[j,k]))
+                        cami_yx=cami_yx+ip_xypf[i,j,k]*pcami_yx[i,j,k]
+                        if not(method=='raw' or method=='regular' or method=='non-normalized' or method=='non-normalised'):
+                            if units=='nat' or units=='nats':
+                                pcami_yx[i,j,k]=-pcami_yx[i,j,k]/np.log(ip_xypf[i,j,k])
+                                pte_yx[i,j,k]=-pte_yx[i,j,k]/np.log(ip_xypf[i,j,k])
+                            elif units=='ban' or units=='bans':
+                                pcami_yx[i,j,k]=-pcami_yx[i,j,k]/np.log10(ip_xypf[i,j,k])
+                                pte_yx[i,j,k]=-pte_yx[i,j,k]/np.log10(ip_xypf[i,j,k])
+                            else:
+                                pcami_yx[i,j,k]=-pcami_yx[i,j,k]/np.log2(ip_xypf[i,j,k])
+                                pte_yx[i,j,k]=-pte_yx[i,j,k]/np.log2(ip_xypf[i,j,k])
+                    else:
+                        pcami_yx[i,j,k]=0
+    #calculate Mutual Information
+    mutual_info=0
+    pmi=np.zeros([n_symbols**lx,n_symbols**lyp])
+    for i in range(n_symbols**lx):
+        for j in range(n_symbols**lyp):
+            if (p_xp[i]*p_yp[j]>0) and (p_xyp[i,j]>0):
+                if units=='nat' or units=='nats':
+                    pmi[i,j]=np.log(p_xyp[i,j]/(p_xp[i]*p_yp[j]))
+                elif units=='ban' or units=='bans':
+                    pmi[i,j]=np.log10(p_xyp[i,j]/(p_xp[i]*p_yp[j]))
+                else:
+                    pmi[i,j]=np.log2(p_xyp[i,j]/(p_xp[i]*p_yp[j]))
+                mutual_info=mutual_info+p_xyp[i,j]*pmi[i,j]
+                if not(method=='raw' or method=='regular' or method=='non-normalized' or method=='non-normalised'):
+                    if units=='nat' or units=='nats':
+                        pmi[i,j]=-pmi[i,j]/np.log(p_xyp[i,j])
+                    elif units=='ban' or units=='bans':
+                        pmi[i,j]=-pmi[i,j]/np.log10(p_xyp[i,j])
+                    else:
+                        pmi[i,j]=-pmi[i,j]/np.log2(p_xyp[i,j])
+            else:
+                pmi[i,j]=0
+    #calculate TE X->Y
+    te_xy=cami_xy-mutual_info
+    #calculate TE Y->X
+    if two_sided==True:
+        te_yx=cami_yx-mutual_info
+    '''#calculate CaMI and TE X->Y
+    cami_xy=0
+    pcami_xy=np.zeros([n_symbols**lx,n_symbols**lyp,n_symbols**lyf])
+    pte_xy=np.zeros([n_symbols**lx,n_symbols**lyp,n_symbols**lyf])
+    for i in range(n_symbols**lx):
+        for j in range(n_symbols**lyp):
+            for k in range(n_symbols**lyf):
+                if (p_xp[i]*p_ypf[j,k]>0) and (p_xypf[i,j,k]>0):
+                    if units=='nat' or units=='nats':
+                        pcami_xy[i,j,k]=np.log(p_xypf[i,j,k]/(p_xp[i]*p_ypf[j,k]))
+                        pte_xy[i,j,k]=np.log((p_xypf[i,j,k]*p_yp[j])/(p_xyp[i,j]*p_ypf[j,k]))
+                    elif units=='ban' or units=='bans':
                         pcami_xy[i,j,k]=np.log10(p_xypf[i,j,k]/(p_xp[i]*p_ypf[j,k]))
                         pte_xy[i,j,k]=np.log10((p_xypf[i,j,k]*p_yp[j])/(p_xyp[i,j]*p_ypf[j,k]))
                     else:
@@ -214,38 +340,38 @@ def pointwise(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,units
                     pte_xy[i,j,k]=0
     #calculate CaMI Y->X
     if two_sided==True:
-        pcami_yx=np.zeros([n_symbols^lx,n_symbols^lx,n_symbols^(ly-lx)])
-        pte_yx=np.zeros([n_symbols^lx,n_symbols^lx,n_symbols^(ly-lx)])
-        cami_yx=0;
-        for i in range(ns^lx):
-            for j in range(ns^lx):
-                for k in range(ns^(ly-lx)):
-                    if (ip_x[i]*ip_ypf[j,k]>1e-14) and (ip_xypf[i,j,k]>1e-14):
-                        if units=='nat':
-                            pcami_yx[i,j,k]=np.log(ip_xypf[i,j,k]/(ip_x[i]*ip_ypf[j,k]))
+        pcami_yx=np.zeros([n_symbols**lx,n_symbols**lyp,n_symbols**lyf])
+        pte_yx=np.zeros([n_symbols**lx,n_symbols**lyp,n_symbols**lyf])
+        cami_yx=0
+        for i in range(n_symbols**lx):
+            for j in range(n_symbols**lyp):
+                for k in range(n_symbols**lyf):
+                    if (ip_xp[i]*ip_ypf[j,k]>0) and (ip_xypf[i,j,k]>0):
+                        if units=='nat' or units=='nats':
+                            pcami_yx[i,j,k]=np.log(ip_xypf[i,j,k]/(ip_xp[i]*ip_ypf[j,k]))
                             pte_yx[i,j,k]=np.log((ip_xypf[i,j,k]*ip_yp[j])/(ip_xyp[i,j]*ip_ypf[j,k]))
-                        elif units=='ban':
-                            pcami_yx[i,j,k]=np.log10(ip_xypf[i,j,k]/(ip_x[i]*ip_ypf[j,k]))
+                        elif units=='ban' or units=='bans':
+                            pcami_yx[i,j,k]=np.log10(ip_xypf[i,j,k]/(ip_xp[i]*ip_ypf[j,k]))
                             pte_yx[i,j,k]=np.log10((ip_xypf[i,j,k]*ip_yp[j])/(ip_xyp[i,j]*ip_ypf[j,k]))
                         else:
-                            pcami_yx[i,j,k]=np.log2(ip_xypf[i,j,k]/(ip_x[i]*ip_ypf[j,k]))
+                            pcami_yx[i,j,k]=np.log2(ip_xypf[i,j,k]/(ip_xp[i]*ip_ypf[j,k]))
                             pte_yx[i,j,k]=np.log2((ip_xypf[i,j,k]*ip_yp[j])/(ip_xyp[i,j]*ip_ypf[j,k]))
                         cami_yx=cami_yx+pcami_yx[i,j,k]
                     else:
                         pcami_yx[i,j,k]=0
                         pte_yx[i,j,k]=0
     #calculate Mutual Information
-    mutual_info=0;
-    pmi=np.zeros([n_symbols^lx,n_symbols^lx])
-    for i in range(n_symbols^lx):
-        for j in range(n_symbols^lx):
-            if (p_xp[i]*p_yp[j]>1e-14) and (p_xyp[i,j]>1e-14):
-                if units=='nat':
-                    pmi[i,j]=p_xyp[i,j]*log(p_xyp[i,j]/(p_xp[i]*p_yp[j]))
-                elif units=='ban':
-                    pmi[i,j]=p_xyp[i,j]*log10(p_xyp[i,j]/(p_xp[i]*p_yp[j]))
+    mutual_info=0
+    pmi=np.zeros([n_symbols**lx,n_symbols**lyp])
+    for i in range(n_symbols**lx):
+        for j in range(n_symbols**lyp):
+            if (p_xp[i]*p_yp[j]>0) and (p_xyp[i,j]>0):
+                if units=='nat' or units=='nats':
+                    pmi[i,j]=p_xyp[i,j]*np.log(p_xyp[i,j]/(p_xp[i]*p_yp[j]))
+                elif units=='ban' or units=='bans':
+                    pmi[i,j]=p_xyp[i,j]*np.log10(p_xyp[i,j]/(p_xp[i]*p_yp[j]))
                 else:
-                    pmi[i,j]=p_xyp[i,j]*log2(p_xyp[i,j]/(p_xp[i]*p_yp[j]))
+                    pmi[i,j]=p_xyp[i,j]*np.log2(p_xyp[i,j]/(p_xp[i]*p_yp[j]))
                 mutual_info=mutual_info+pmi[i,j]
             else:
                 pmi[i,j]=0
@@ -253,7 +379,7 @@ def pointwise(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,units
     te_xy=cami_xy-mutual_info
     #calculate TE Y->X
     if two_sided==True:
-        te_yx=cami_yx-mutual_info
+        te_yx=cami_yx-mutual_info'''
 
     #print overall information measures:
     print('Information values:')
@@ -271,26 +397,62 @@ def pointwise(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,units
     print('--------\nGenerating the time-series of pointwise information measures')
 
     #passing the results to time-series
-    point_cami_xy=np.nan(len(x))
-    point_mi=np.nan(len(x))
-    point_te_xy=np.nan(len(x))
+    point_cami_xy=np.full(len(x),np.nan)
+    point_mi=np.full(len(x),np.nan)
+    point_te_xy=np.full(len(x),np.nan)
     if two_sided==True:
-        point_cami_yx=np.nan(len(x))
-        point_te_yx(len(x))
-    for i in range(len(x)-lx):
-        pos=i+lx
-        if phi_x[pos]!=np.nan and phi_yp[pos]!=np.nan and phi_yf[pos]!=np.nan:
-            point_cami_xy[i]=pcami_xy[phi_x[pos],phi_yp[pos],phi_yf[pos]]
-            point_mi[i]=pmi[phi_x[pos],phi_yp[pos]]
-            point_te_xy[i]=pte_xy[phi_x[pos],phi_yp[pos],phi_yf[pos]]
+        point_cami_yx=np.full(len(x),np.nan)
+        point_te_yx=np.full(len(x),np.nan)
+    lmax=max([lx,lyp,lyf])
+    for i in range(len(x)-lmax):
+        if not (np.isnan(phi_x[i+lx]) or np.isnan(phi_yp[i+lyp]) or np.isnan(phi_yf[i+lyf])):
+            point_cami_xy[i]=pcami_xy[int(phi_x[i+lx]),int(phi_yp[i+lyp]),int(phi_yf[i+lyf])]
+            point_mi[i]=pmi[int(phi_x[i+lx]),int(phi_yp[i+lyp])]
+            point_te_xy[i]=pte_xy[int(phi_x[i+lx]),int(phi_yp[i+lyp]),int(phi_yf[i+lyf])]
     if two_sided==True:
-        for i in range(len(x)-lx):
-            pos=i+lx
-            if iphi_x[pos]!=np.nan and iphi_yp[pos]!=np.nan and iphi_yf[pos]!=np.nan: 
-                point_cami_yx[i]=pcami_yx[iphi_x[pos],iphi_yp[pos],iphi_yf[pos]]
-                point_te_yx[i]=pte_yx[iphi_x[pos],iphi_yp[pos],iphi_yf[pos]]    
+        for i in range(len(x)-lmax):
+            if not(np.isnan(iphi_x[i+lx]) or np.isnan(iphi_yp[i+lyp]) or np.isnan(iphi_yf[i+lyf])): 
+                point_cami_yx[i]=pcami_yx[int(iphi_x[i+lx]),int(iphi_yp[i+lyp]),int(iphi_yf[i+lyf])]
+                point_te_yx[i]=pte_yx[int(iphi_x[i+lx]),int(iphi_yp[i+lyp]),int(iphi_yf[i+lyf])]    
         point_di=point_cami_xy-point_cami_yx
     print('done!')
+
+    #plotting
+    if make_plot==True:
+        import matplotlib.pyplot as plt
+        if two_sided==True:
+            fig,ax=plt.subplots(3,2)
+            im1=ax[0,0].scatter(x[:len(point_cami_xy)],y[:len(point_cami_xy)],c=point_cami_xy,cmap='bwr',marker='.',linewidths=0,alpha=0.5,vmin=-max(abs(min(point_cami_xy)),abs(max(point_cami_xy))),vmax=max(abs(min(point_cami_xy)),abs(max(point_cami_xy))))
+            ax[0,0].set_title(r'$CaMI_{X\rightarrow Y}$')
+            fig.colorbar(im1,ax=ax[0,0])
+            im2=ax[0,1].scatter(x[:len(point_cami_yx)],y[:len(point_cami_yx)],c=point_cami_yx,cmap='bwr',marker='.',linewidths=0,alpha=0.5,vmin=-max(abs(min(point_cami_yx)),abs(max(point_cami_yx))),vmax=max(abs(min(point_cami_yx)),abs(max(point_cami_yx))))
+            ax[0,1].set_title(r'$CaMI_{Y\rightarrow X}$')
+            fig.colorbar(im2,ax=ax[0,1])
+            im3=ax[1,0].scatter(x[:len(point_te_xy)],y[:len(point_te_xy)],c=point_te_xy,cmap='bwr',marker='.',linewidths=0,alpha=0.5,vmin=-max(abs(min(point_te_xy)),abs(max(point_te_xy))),vmax=max(abs(min(point_te_xy)),abs(max(point_te_xy))))
+            ax[1,0].set_title(r'$TE_{X\rightarrow Y}$')
+            fig.colorbar(im3,ax=ax[1,0])
+            im4=ax[1,1].scatter(x[:len(point_te_yx)],y[:len(point_te_yx)],c=point_te_yx,cmap='bwr',marker='.',linewidths=0,alpha=0.5,vmin=-max(abs(min(point_te_yx)),abs(max(point_te_yx))),vmax=max(abs(min(point_te_yx)),abs(max(point_te_yx))))
+            ax[1,1].set_title(r'$TE_{Y\rightarrow X}$')
+            fig.colorbar(im4,ax=ax[1,1])
+            im5=ax[2,0].scatter(x[:len(point_mi)],y[:len(point_mi)],c=point_mi,cmap='bwr',marker='.',linewidths=0,alpha=0.5,vmin=-max(abs(min(point_mi)),abs(max(point_mi))),vmax=max(abs(min(point_mi)),abs(max(point_mi))))
+            ax[2,0].set_title(r'Mutual Information')
+            fig.colorbar(im5,ax=ax[2,0])
+            im6=ax[2,1].scatter(x[:len(point_di)],y[:len(point_di)],c=point_di,cmap='bwr',marker='.',linewidths=0,alpha=0.5,vmin=-max(abs(min(point_di)),abs(max(point_di))),vmax=max(abs(min(point_di)),abs(max(point_di))))
+            ax[2,1].set_title(r'Directionality Index')
+            fig.colorbar(im6,ax=ax[2,1])
+        else:
+            fig,ax=plt.subplots(3,1)
+            im1=ax[0,0].scatter(x[:len(point_cami_xy)],y[:len(point_cami_xy)],c=point_cami_xy,cmap='bwr',marker='.',linewidths=0,alpha=0.5,vmin=-max(abs(min(point_cami_xy)),abs(max(point_cami_xy))),vmax=max(abs(min(point_cami_xy)),abs(max(point_cami_xy))))
+            ax[0,0].set_title(r'$CaMI_{X\rightarrow Y}$')
+            fig.colorbar(im1,ax=ax[0,0])
+            im2=ax[1,0].scatter(x[:len(point_te_xy)],y[:len(point_te_xy)],c=point_te_xy,cmap='bwr',marker='.',linewidths=0,alpha=0.5,vmin=-max(abs(min(point_te_xy)),abs(max(point_te_xy))),vmax=max(abs(min(point_te_xy)),abs(max(point_te_xy))))
+            ax[1,0].set_title(r'$TE_{X\rightarrow Y}$')
+            fig.colorbar(im2,ax=ax[1,0])
+            im3=ax[2,0].scatter(x[:len(point_mi)],y[:len(point_mi)],c=point_mi,cmap='bwr',marker='.',linewidths=0,alpha=0.5,vmin=-max(abs(min(point_mi)),abs(max(point_mi))),vmax=max(abs(min(point_mi)),abs(max(point_mi))))
+            ax[2,0].set_title(r'Mutual Information')
+            fig.colorbar(im3,ax=ax[2,0])
+        fig.tight_layout()
+        plt.show()
     
     #return results
     if two_sided==True:

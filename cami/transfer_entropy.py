@@ -141,7 +141,7 @@ def transfer_entropy(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=
     if two_sided==True:
         ip_xp,ip_yp,ip_yf,ip_ypf,ip_xyp,ip_xypf,__,__,__=cami.get_prob(Sy,Sx,n_symbols=n_symbols,symbolic_length=symbolic_length,tau=tau)
     #calculate CaMI X->Y
-    cami_xy=0;
+    cami_xy=0
     pcami_xy=np.zeros([n_symbols**lx,n_symbols**lyp,n_symbols**lyf])
     for i in range(n_symbols**lx):
         for j in range(n_symbols**lyp):
@@ -153,13 +153,13 @@ def transfer_entropy(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=
                         pcami_xy[i,j,k]=p_xypf[i,j,k]*np.log10(p_xypf[i,j,k]/(p_xp[i]*p_ypf[j,k]))
                     else:
                         pcami_xy[i,j,k]=p_xypf[i,j,k]*np.log2(p_xypf[i,j,k]/(p_xp[i]*p_ypf[j,k]))
-                    cami_xy=cami_xy+pcami_xy[i,j,k];
+                    cami_xy=cami_xy+pcami_xy[i,j,k]
                 else:
                     pcami_xy[i,j,k]=0
     #calculate CaMI Y->X
     if two_sided==True:
         pcami_yx=np.zeros([n_symbols**lx,n_symbols**lyp,n_symbols**lyf])
-        cami_yx=0;
+        cami_yx=0
         for i in range(n_symbols**lx):
             for j in range(n_symbols**lyp):
                 for k in range(n_symbols**lyf):
