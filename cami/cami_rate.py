@@ -1,4 +1,4 @@
-def cami_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,L_limit=10,units='bits'):
+def cami_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,L_limit=6,units='bits',make_plot=False):
     ''' Calculates the Causal Mutual Information Rate
         between two variables given their
         observable time-series.
@@ -40,16 +40,19 @@ def cami_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,L_limit=10,units=
         Causal Mutual Information from. It should be sufficient to
         enable identification of linear CaMI x L section, but values
         too high come with computational cost without significant
-        benefits. Default: 10.
+        benefits. Default: 6.
     units: str, optional
         Units to be used (base of the logarithm). Options:
             - 'bits': log2 is adopted (default)
             - 'nat': ln is adopted
             - 'ban': log10 is adopted
+    make_plot: bool, optional
+        Whether to plot CaMI x L graph. Default: False.
     
     Returns
     -------
-    Prints the value of the Causal Mutual Information Rate on the shell
+    camir: float
+        The value of the Causal Mutual Information Rate in the direction X->Y
 
     See Also
     --------
@@ -75,12 +78,14 @@ def cami_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,L_limit=10,units=
     cami_rate(x,y,symbolic_type='equal-points',n_symbols=10,units='bits')
     '''
     #import libraries
-    import matplotlib.pyplot as plt
-    from tkinter import Tk,Label,Button,Entry
     import numpy as np
     import pandas as pd
     import cami
     from scipy.stats import linregress
+
+    #checking if minimum L_limit is satified
+    if L_limit<3:
+        raise ValueError('L_limit must be equal or greater than 3')
 
     #interpolate missing data or trim if its in the edges
     x,y=pd.to_numeric(x,errors='coerce'),pd.to_numeric(y,errors='coerce')
@@ -102,53 +107,28 @@ def cami_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,L_limit=10,units=
     for L in range(1,L_limit+1):
         cami_val[L-1]=cami.cami(x,y,symbolic_type=symbolic_type,n_symbols=n_symbols,symbolic_length=L,tau=tau,units=units)
 
-    #plot MI vs L
-    plt.ion()
-    plt.plot(np.arange(L_limit)+1,cami_val)
-    plt.xlabel('Symbolic length (L)')
-    plt.ylabel('Causal Mutual Information [',units,']')
-    plt.title('Check for a linear part')
-    plt.draw()
+    #finding the linear part (or the closest to linear)
+    cami_diff2=np.diff(np.diff(cami_val))
+    a=min(abs(cami_diff2))
+    find_a=np.where(cami_diff2==a)
+    find_b=np.where(cami_diff2==-a)
+    if len(find_a[0])>0:
+        idx=find_a[0][0]
+    else:
+        idx=find_b[0][0]
+    #perform linear regression
+    camir=linregress(np.arange(3)+idx+1,cami_val[idx:idx+3]).slope
+    #display result
+    print('Causal Mutual Information Rate based on fitting from L=',idx+1,' to L=',idx+3,': ', camir)
 
-    try: #if running straight from python, pops up an input box
-        #create dialog box asking where the linear portion begins and ends
-        master = Tk()
-        label=Label(master,text="Inform the linear part")
-        label.pack()
-        e1 = Entry(master)
-        msg1 = "Type L_min here (int)"
-        e1.delete(0, END)
-        e1.insert(0, msg1)
-        e1.pack()
-        e1.focus_set()
-        e2 = Entry(master)
-        msg2 = "Type L_max here (int)"
-        e2.delete(0, END)
-        e2.insert(0, msg2)
-        e2.pack()
-        e2.focus_set()
+    #plot CaMI vs L
+    if make_plot==True:
+        import matplotlib.pyplot as plt
+        plt.figure()
+        plt.plot(np.arange(L_limit)+1,cami_val)
+        plt.xlabel('Symbolic length (L)')
+        plt.ylabel('Causal Mutual Information ['+units+']')
+        plt.show()
 
-        #callback to dialog button performs the linear regression which prints mir in turn
-        def callback():
-            #get the informed Lmin and Lmax
-            Lmin=int(e1.get())
-            Lmax=int(e2.get())
-            #calculates MIR
-            camir=linregress(np.arange(Lmax-Lmin+1)+Lmin,cami_val[Lmin+1:Lmax+1]).slope
-            #print results
-            print('Causal Mutual Information Rate: ', camir)
-            #close figures and dialog box
-            plt.close()
-            master.destroy()
-
-        #creates the dialog box button and run the dialog box
-        b = Button(master, text = "OK", width = 10, command = callback)
-        b.pack()
-        mainloop()
-
-    except:#if input box failed, probably is running in an interactive environment like Jupyter, where input() is fine 
-        print("Inform the linear part:")
-        Lmin=int(input("Inform L_min (int): "))
-        Lmax=int(input("Inform L_max (int): "))
-        camir=linregress(np.arange(Lmax-Lmin+1)+Lmin,cami_val[Lmin+1:Lmax+1]).slope
-        print('Causal Mutual Information Rate: ', camir)
+    #return results
+    return camir

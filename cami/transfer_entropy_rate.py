@@ -1,4 +1,4 @@
-def transfer_entropy_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,L_limit=10,units='bits'):
+def transfer_entropy_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,L_limit=6,units='bits',make_plot=False):
     ''' Calculates the Transfer Entropy Rate
         between two variables given their
         observable time-series.
@@ -40,16 +40,19 @@ def transfer_entropy_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,L_lim
         Transfer Entropy from. It should be sufficient to enable
         identification of linear TE x L section, but values too high
         come with computational cost without significant benefits.
-        Default: 10.
+        Default: 6.
     units: str, optional
         Units to be used (base of the logarithm). Options:
-            - 'bits': log2 is adopted (default)
-            - 'nat': ln is adopted
-            - 'ban': log10 is adopted
-    
+            - 'bit' or 'bits': log2 is adopted (default)
+            - 'nat' or 'nats': ln is adopted
+            - 'ban' or 'bans': log10 is adopted
+    make_plot: bool, optional
+        Whether to plot TE x L graph. Default: False.
+        
     Returns
     -------
-    Prints the value of the Causal Mutual Information Rate on the shell
+    ter: float
+        The value of the Transfer Entropy Rate in the direction X->Y
 
     See Also
     --------
@@ -75,12 +78,14 @@ def transfer_entropy_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,L_lim
     transfer_entropy_rate(x,y,symbolic_type='equal-points',n_symbols=10,units='bits')
     '''
     #import libraries
-    import matplotlib.pyplot as plt
-    from tkinter import Tk,Label,Button,Entry
     import numpy as np
     import pandas as pd
     import cami
     from scipy.stats import linregress
+
+    #checking if minimum L_limit is satified
+    if L_limit<3:
+        raise ValueError('L_limit must be equal or greater than 3')
 
     #interpolate missing data or trim if its in the edges
     x,y=pd.to_numeric(x,errors='coerce'),pd.to_numeric(y,errors='coerce')
@@ -97,58 +102,33 @@ def transfer_entropy_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,L_lim
         return data
     x,y=interp_func(x),interp_func(y)
 
-    #calculate mutual info as a function of symbolic length
+    #calculate transfer entropy as a function of symbolic length
     te=np.zeros(L_limit)
     for L in range(1,L_limit+1):
         te[L-1]=cami.transfer_entropy(x,y,symbolic_type=symbolic_type,n_symbols=n_symbols,symbolic_length=L,tau=tau,units=units)
 
-    #plot MI vs L
-    plt.ion()
-    plt.plot(np.arange(L_limit)+1,te)
-    plt.xlabel('Symbolic length (L)')
-    plt.ylabel('Transfer Entropy [',units,']')
-    plt.title('Check for a linear part')
-    plt.draw()
+    #finding the linear part (or the closest to linear)
+    te_diff2=np.diff(np.diff(te))
+    a=min(abs(te_diff2))
+    find_a=np.where(te_diff2==a)
+    find_b=np.where(te_diff2==-a)
+    if len(find_a[0])>0:
+        idx=find_a[0][0]
+    else:
+        idx=find_b[0][0]
+    #perform linear regression
+    ter=linregress(np.arange(3)+idx+1,te[idx:idx+3]).slope
+    #display result
+    print('Transfer Entropy Rate based on fitting from L=',idx+1,' to L=',idx+3,': ', ter)
 
-    try: #if running straight from python, pops up an input box
-        #create dialog box asking where the linear portion begins and ends
-        master = Tk()
-        label=Label(master,text="Inform the linear part")
-        label.pack()
-        e1 = Entry(master)
-        msg1 = "Type L_min here (int)"
-        e1.delete(0, END)
-        e1.insert(0, msg1)
-        e1.pack()
-        e1.focus_set()
-        e2 = Entry(master)
-        msg2 = "Type L_max here (int)"
-        e2.delete(0, END)
-        e2.insert(0, msg2)
-        e2.pack()
-        e2.focus_set()
+    #plot TE vs L
+    if make_plot==True:
+        import matplotlib.pyplot as plt
+        plt.figure()
+        plt.plot(np.arange(L_limit)+1,te)
+        plt.xlabel('Symbolic length (L)')
+        plt.ylabel('Transfer Entropy ['+units+']')
+        plt.show()
 
-        #callback to dialog button performs the linear regression which prints mir in turn
-        def callback():
-            #get the informed Lmin and Lmax
-            Lmin=int(e1.get())
-            Lmax=int(e2.get())
-            #calculates MIR
-            ter=linregress(np.arange(Lmax-Lmin+1)+Lmin,te[Lmin+1:Lmax+1]).slope
-            #print results
-            print('Transfer Entropy Rate: ', ter)
-            #close figures and dialog box
-            plt.close()
-            master.destroy()
-
-        #creates the dialog box button and run the dialog box
-        b = Button(master, text = "OK", width = 10, command = callback)
-        b.pack()
-        mainloop()
-
-    except:#if input box failed, probably is running in an interactive environment like Jupyter, where input() is fine 
-        print("Inform the linear part:")
-        Lmin=int(input("Inform L_min (int): "))
-        Lmax=int(input("Inform L_max (int): "))
-        camir=linregress(np.arange(Lmax-Lmin+1)+Lmin,cami_val[Lmin+1:Lmax+1]).slope
-        print('Causal Mutual Information Rate: ', camir)
+    #return results
+    return ter
