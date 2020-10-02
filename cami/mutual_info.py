@@ -85,7 +85,7 @@ def mutual_info(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau
     import pandas as pd
     import cami
     #checking units
-    if units=='bits' or units=='nat' or units=='ban':
+    if units=='bit' or units=='bits' or units=='nat' or units=='nats' or units=='ban' or units=='bans':
         pass
     else:
         raise ValueError('Units must be bits or nat or ban. See help on function.')
@@ -129,9 +129,9 @@ def mutual_info(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau
     for i in range(n_symbols**lx):
         for j in range(n_symbols**ly):
             if (p_xp[i]*p_yp[j]>0) and (p_xyp[i,j]>0):
-                if units=='nat':
+                if units=='nat' or units =='nats':
                     pmi[i,j]=p_xyp[i,j]*np.log(p_xyp[i,j]/(p_xp[i]*p_yp[j]))
-                elif units=='ban':
+                elif units=='ban' or units=='bans':
                     pmi[i,j]=p_xyp[i,j]*np.log10(p_xyp[i,j]/(p_xp[i]*p_yp[j]))
                 else:
                     pmi[i,j]=p_xyp[i,j]*np.log2(p_xyp[i,j]/(p_xp[i]*p_yp[j]))

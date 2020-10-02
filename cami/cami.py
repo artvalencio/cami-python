@@ -100,7 +100,7 @@ def cami(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=None,u
     import pandas as pd
     import cami
     #checking units
-    if units=='bits' or units=='nat' or units=='ban':
+    if units=='bit' or units=='bits' or units=='nat' or units=='nats' or units=='ban' or units=='bans':
         pass
     else:
         raise ValueError('Units must be bits or nat or ban. See help on function.')
@@ -147,9 +147,9 @@ def cami(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=None,u
         for j in range(n_symbols**lyp):
             for k in range(n_symbols**lyf):
                 if (p_xp[i]*p_ypf[j,k]>0) and (p_xypf[i,j,k]>0):
-                    if units=='nat':
+                    if units=='nat' or units=='nats':
                         pcami_xy[i,j,k]=p_xypf[i,j,k]*np.log(p_xypf[i,j,k]/(p_xp[i]*p_ypf[j,k]))
-                    elif units=='ban':
+                    elif units=='ban' or units=='bans':
                         pcami_xy[i,j,k]=p_xypf[i,j,k]*np.log10(p_xypf[i,j,k]/(p_xp[i]*p_ypf[j,k]))
                     else:
                         pcami_xy[i,j,k]=p_xypf[i,j,k]*np.log2(p_xypf[i,j,k]/(p_xp[i]*p_ypf[j,k]))
@@ -164,9 +164,9 @@ def cami(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=None,u
             for j in range(n_symbols**lyp):
                 for k in range(n_symbols**lyf):
                     if (ip_x[i]*ip_ypf[j,k]>0) and (ip_xypf[i,j,k]>0):
-                        if units=='nat':
+                        if units=='nat' or units=='nats':
                             pcami_yx[i,j,k]=ip_xypf[i,j,k]*np.log(ip_xypf[i,j,k]/(ip_x[i]*ip_ypf[j,k]))
-                        elif units=='ban':
+                        elif units=='ban' or units=='bans':
                             pcami_yx[i,j,k]=ip_xypf[i,j,k]*np.log10(ip_xypf[i,j,k]/(ip_x[i]*ip_ypf[j,k]))
                         else:
                             pcami_yx[i,j,k]=ip_xypf[i,j,k]*np.log2(ip_xypf[i,j,k]/(ip_x[i]*ip_ypf[j,k]))

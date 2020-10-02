@@ -317,69 +317,6 @@ def pointwise(x,y,method='normalized',symbolic_type='equal-divs',n_symbols=2,sym
     #calculate TE Y->X
     if two_sided==True:
         te_yx=cami_yx-mutual_info
-    '''#calculate CaMI and TE X->Y
-    cami_xy=0
-    pcami_xy=np.zeros([n_symbols**lx,n_symbols**lyp,n_symbols**lyf])
-    pte_xy=np.zeros([n_symbols**lx,n_symbols**lyp,n_symbols**lyf])
-    for i in range(n_symbols**lx):
-        for j in range(n_symbols**lyp):
-            for k in range(n_symbols**lyf):
-                if (p_xp[i]*p_ypf[j,k]>0) and (p_xypf[i,j,k]>0):
-                    if units=='nat' or units=='nats':
-                        pcami_xy[i,j,k]=np.log(p_xypf[i,j,k]/(p_xp[i]*p_ypf[j,k]))
-                        pte_xy[i,j,k]=np.log((p_xypf[i,j,k]*p_yp[j])/(p_xyp[i,j]*p_ypf[j,k]))
-                    elif units=='ban' or units=='bans':
-                        pcami_xy[i,j,k]=np.log10(p_xypf[i,j,k]/(p_xp[i]*p_ypf[j,k]))
-                        pte_xy[i,j,k]=np.log10((p_xypf[i,j,k]*p_yp[j])/(p_xyp[i,j]*p_ypf[j,k]))
-                    else:
-                        pcami_xy[i,j,k]=np.log2(p_xypf[i,j,k]/(p_xp[i]*p_ypf[j,k]))
-                        pte_xy[i,j,k]=np.log2((p_xypf[i,j,k]*p_yp[j])/(p_xyp[i,j]*p_ypf[j,k]))
-                    cami_xy=cami_xy+pcami_xy[i,j,k];
-                else:
-                    pcami_xy[i,j,k]=0
-                    pte_xy[i,j,k]=0
-    #calculate CaMI Y->X
-    if two_sided==True:
-        pcami_yx=np.zeros([n_symbols**lx,n_symbols**lyp,n_symbols**lyf])
-        pte_yx=np.zeros([n_symbols**lx,n_symbols**lyp,n_symbols**lyf])
-        cami_yx=0
-        for i in range(n_symbols**lx):
-            for j in range(n_symbols**lyp):
-                for k in range(n_symbols**lyf):
-                    if (ip_xp[i]*ip_ypf[j,k]>0) and (ip_xypf[i,j,k]>0):
-                        if units=='nat' or units=='nats':
-                            pcami_yx[i,j,k]=np.log(ip_xypf[i,j,k]/(ip_xp[i]*ip_ypf[j,k]))
-                            pte_yx[i,j,k]=np.log((ip_xypf[i,j,k]*ip_yp[j])/(ip_xyp[i,j]*ip_ypf[j,k]))
-                        elif units=='ban' or units=='bans':
-                            pcami_yx[i,j,k]=np.log10(ip_xypf[i,j,k]/(ip_xp[i]*ip_ypf[j,k]))
-                            pte_yx[i,j,k]=np.log10((ip_xypf[i,j,k]*ip_yp[j])/(ip_xyp[i,j]*ip_ypf[j,k]))
-                        else:
-                            pcami_yx[i,j,k]=np.log2(ip_xypf[i,j,k]/(ip_xp[i]*ip_ypf[j,k]))
-                            pte_yx[i,j,k]=np.log2((ip_xypf[i,j,k]*ip_yp[j])/(ip_xyp[i,j]*ip_ypf[j,k]))
-                        cami_yx=cami_yx+pcami_yx[i,j,k]
-                    else:
-                        pcami_yx[i,j,k]=0
-                        pte_yx[i,j,k]=0
-    #calculate Mutual Information
-    mutual_info=0
-    pmi=np.zeros([n_symbols**lx,n_symbols**lyp])
-    for i in range(n_symbols**lx):
-        for j in range(n_symbols**lyp):
-            if (p_xp[i]*p_yp[j]>0) and (p_xyp[i,j]>0):
-                if units=='nat' or units=='nats':
-                    pmi[i,j]=p_xyp[i,j]*np.log(p_xyp[i,j]/(p_xp[i]*p_yp[j]))
-                elif units=='ban' or units=='bans':
-                    pmi[i,j]=p_xyp[i,j]*np.log10(p_xyp[i,j]/(p_xp[i]*p_yp[j]))
-                else:
-                    pmi[i,j]=p_xyp[i,j]*np.log2(p_xyp[i,j]/(p_xp[i]*p_yp[j]))
-                mutual_info=mutual_info+pmi[i,j]
-            else:
-                pmi[i,j]=0
-    #calculate TE X->Y
-    te_xy=cami_xy-mutual_info
-    #calculate TE Y->X
-    if two_sided==True:
-        te_yx=cami_yx-mutual_info'''
 
     #print overall information measures:
     print('Information values:')

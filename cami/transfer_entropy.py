@@ -100,7 +100,7 @@ def transfer_entropy(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=
     import pandas as pd
     import cami
     #checking units
-    if units=='bits' or units=='nat' or units=='ban':
+    if units=='bit' or units=='bits' or units=='nat' or units=='nats' or units=='ban' or units=='bans':
         pass
     else:
         raise ValueError('Units must be bits or nat or ban. See help on function.')
@@ -147,9 +147,9 @@ def transfer_entropy(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=
         for j in range(n_symbols**lyp):
             for k in range(n_symbols**lyf):
                 if (p_xp[i]*p_ypf[j,k]>0) and (p_xypf[i,j,k]>0):
-                    if units=='nat':
+                    if units=='nat' or units=='nats':
                         pcami_xy[i,j,k]=p_xypf[i,j,k]*np.log(p_xypf[i,j,k]/(p_xp[i]*p_ypf[j,k]))
-                    elif units=='ban':
+                    elif units=='ban' or units=='bans':
                         pcami_xy[i,j,k]=p_xypf[i,j,k]*np.log10(p_xypf[i,j,k]/(p_xp[i]*p_ypf[j,k]))
                     else:
                         pcami_xy[i,j,k]=p_xypf[i,j,k]*np.log2(p_xypf[i,j,k]/(p_xp[i]*p_ypf[j,k]))
@@ -164,9 +164,9 @@ def transfer_entropy(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=
             for j in range(n_symbols**lyp):
                 for k in range(n_symbols**lyf):
                     if (ip_xp[i]*ip_ypf[j,k]>0) and (ip_xypf[i,j,k]>0):
-                        if units=='nat':
+                        if units=='nat' or units=='nats':
                             pcami_yx[i,j,k]=ip_xypf[i,j,k]*np.log(ip_xypf[i,j,k]/(ip_xp[i]*ip_ypf[j,k]))
-                        elif units=='ban':
+                        elif units=='ban' or units=='bans':
                             pcami_yx[i,j,k]=ip_xypf[i,j,k]*np.log10(ip_xypf[i,j,k]/(ip_xp[i]*ip_ypf[j,k]))
                         else:
                             pcami_yx[i,j,k]=ip_xypf[i,j,k]*np.log2(ip_xypf[i,j,k]/(ip_xp[i]*ip_ypf[j,k]))
@@ -179,9 +179,9 @@ def transfer_entropy(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=
     for i in range(n_symbols**lx):
         for j in range(n_symbols**lyp):
             if (p_xp[i]*p_yp[j]>0) and (p_xyp[i,j]>0):
-                if units=='nat':
+                if units=='nat' or units=='nats':
                     pmi[i,j]=p_xyp[i,j]*np.log(p_xyp[i,j]/(p_xp[i]*p_yp[j]))
-                elif units=='ban':
+                elif units=='ban' or unis=='bans':
                     pmi[i,j]=p_xyp[i,j]*np.log10(p_xyp[i,j]/(p_xp[i]*p_yp[j]))
                 else:
                     pmi[i,j]=p_xyp[i,j]*np.log2(p_xyp[i,j]/(p_xp[i]*p_yp[j]))
