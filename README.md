@@ -1,7 +1,5 @@
 # CaMI-Python: Causality toolbox for Python.
 
-UNDER DEVELOPMENT
-
 This package provides functions for dynamical and causality
 investigation using information theory and nonlinear time-series
 analysis tools

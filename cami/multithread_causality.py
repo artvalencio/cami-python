@@ -144,19 +144,19 @@ def multithread_causality(x,y,axis=1,symbolic_type='equal-divs',n_symbols=2,symb
             tau=1
         return tau
     if tau=='average' or tau=='mean' or tau==None:
-        tau=int(np.mean([max(get_tau(x[:,node]),get_tau(y[:,node])) for node in range(len(x[0,:]))]))
+        tau=int(np.mean([max(get_tau(x[:,thread]),get_tau(y[:,thread])) for thread in range(len(x[0,:]))]))
         print('Selected tau=',tau,' by the method of first zero of auto-correlation, average of all trials',sep='')
     elif tau=='max' or tau=='maximum':
-        tau=int(max([max(get_tau(x[:,node]),get_tau(y[:,node])) for node in range(len(x[0,:]))]))
+        tau=int(max([max(get_tau(x[:,thread]),get_tau(y[:,thread])) for thread in range(len(x[0,:]))]))
         print('Selected tau=',tau,' by the method of first zero of auto-correlation, maximum of all trials',sep='')
     elif tau=='median' or tau=='med':
-        tau=int(np.median([max(get_tau(x[:,node]),get_tau(y[:,node])) for node in range(len(x[0,:]))]))
+        tau=int(np.median([max(get_tau(x[:,thread]),get_tau(y[:,thread])) for thread in range(len(x[0,:]))]))
         print('Selected tau=',tau,' by the method of first zero of auto-correlation, median of all trials',sep='')
 
     #convert to symbolic sequence
     def multithread_symbolic_encoding(x,y,symbolic_type=symbolic_type,n_symbols=n_symbols):
         tslen=len(x[:,0])
-        nnodes=len(x[0,:])
+        nthreads=len(x[0,:])
         #generating partitions (checking consistency)
         if symbolic_type=='equal-divs':
             xmin,xmax,ymin,ymax = x.min(),x.max(),y.min(),y.max()
@@ -202,36 +202,36 @@ def multithread_causality(x,y,axis=1,symbolic_type='equal-divs',n_symbols=2,symb
         else:
             raise ValueError('Error: Unacceptable argument of symbolic type. See help on function.')
         #Generating the symbolic sequences
-        def getsequence(x,y,xpart,ypart,tslen,nnodes,partlen):
-            Sx=np.full([tslen,nnodes],-1)
-            Sy=np.full([tslen,nnodes],-1)
-            for node in range(nnodes):
+        def getsequence(x,y,xpart,ypart,tslen,nthreads,partlen):
+            Sx=np.full([tslen,nthreads],-1)
+            Sy=np.full([tslen,nthreads],-1)
+            for thread in range(nthreads):
                 for n in range(tslen): #assign data points to partition symbols in x
                     for i in range(partlen):
-                        if x[n,node]<xpart[i]:
-                            Sx[n,node]=i
+                        if x[n,thread]<xpart[i]:
+                            Sx[n,thread]=i
                             break
-                    if Sx[n,node]==-1:
-                        Sx[n,node]=n_symbols-1
-            for node in range(nnodes):
+                    if Sx[n,thread]==-1:
+                        Sx[n,thread]=n_symbols-1
+            for thread in range(nthreads):
                 for n in range(tslen): #assign data points to partition symbols in y
                     for i in range(partlen):
-                        if y[n,node]<ypart[i]:
-                            Sy[n,node]=i
+                        if y[n,thread]<ypart[i]:
+                            Sy[n,thread]=i
                             break
-                    if Sy[n,node]==-1:
-                        Sy[n,node]=n_symbols-1
+                    if Sy[n,thread]==-1:
+                        Sy[n,thread]=n_symbols-1
             return Sx,Sy      
         if symbolic_type=='equal-divs' or symbolic_type=='equal-points':
-            Sx,Sy = getsequence(x,y,xpart,ypart,tslen,nnodes,n_symbols-1)
+            Sx,Sy = getsequence(x,y,xpart,ypart,tslen,nthreads,n_symbols-1)
         elif symbolic_type=='equal-growth':
-            Sx,Sy = getsequence(xdiff,ydiff,xpart,ypart,tslen-1,nnodes,n_symbols-1)
+            Sx,Sy = getsequence(xdiff,ydiff,xpart,ypart,tslen-1,nthreads,n_symbols-1)
         elif symbolic_type=='equal-concavity':
-            Sx,Sy = getsequence(np.diff(x),np.diff(y),xpart,ypart,tslen-1,nnodes,n_symbols-1)
+            Sx,Sy = getsequence(np.diff(x),np.diff(y),xpart,ypart,tslen-1,nthreads,n_symbols-1)
         elif symbolic_type=='equal-concavity':
-            Sx,Sy = getsequence(xdiff2,ydiff2,xpart,ypart,tslen-2,nnodes,n_symbols-1)
+            Sx,Sy = getsequence(xdiff2,ydiff2,xpart,ypart,tslen-2,nthreads,n_symbols-1)
         elif symbolic_type=='equal-concavity-points':
-            Sx,Sy = getsequence(np.diff(np.diff(x)),np.diff(np.diff(y)),xpart,ypart,tslen-2,nnodes,n_symbols-1)
+            Sx,Sy = getsequence(np.diff(np.diff(x)),np.diff(np.diff(y)),xpart,ypart,tslen-2,nthreads,n_symbols-1)
         #Returning result
         return Sx,Sy
 
@@ -252,12 +252,12 @@ def multithread_causality(x,y,axis=1,symbolic_type='equal-divs',n_symbols=2,symb
         raise TypeError('Error: Symbolic length must be int or list/tuple with 2 or 3 elements. See help on function')
     #get box names and probabilities
     def multithread_get_prob(Sx,Sy,lx,lyp,lyf,n_symbols=2,tau=1):
-        nnodes=len(Sx[0,:])
+        nthreads=len(Sx[0,:])
         tslen=len(Sx[:,0])
         #initializing boxes
-        phi_x=np.full([tslen,nnodes],np.nan)
-        phi_yp=np.full([tslen,nnodes],np.nan)
-        phi_yf=np.full([tslen,nnodes],np.nan)
+        phi_x=np.full([tslen,nthreads],np.nan)
+        phi_yp=np.full([tslen,nthreads],np.nan)
+        phi_yf=np.full([tslen,nthreads],np.nan)
         #initializing probabilities of boxes
         p_xp=np.zeros(n_symbols**lx)
         p_yp=np.zeros(n_symbols**lyp)
@@ -266,42 +266,42 @@ def multithread_causality(x,y,axis=1,symbolic_type='equal-divs',n_symbols=2,symb
         p_xyp=np.zeros([n_symbols**lx,n_symbols**lyp])
         p_xypf=np.zeros([n_symbols**lx,n_symbols**lyp,n_symbols**lyf])
         #calculating phi_x, about the past of x
-        for node in range(nnodes):
+        for thread in range(nthreads):
             for n in range(tau*lx,tslen):
-                phi_x[n,node]=0
+                phi_x[n,thread]=0
                 k=0
                 for i in range(n-tau*lx,n,tau):
-                    phi_x[n,node]=phi_x[n,node]+Sx[i,node]*n_symbols**(k)#phi is the partition box name of the sequence: e.g.: (|0|..tau..|1|..tau..|0|) => box phi=2
+                    phi_x[n,thread]=phi_x[n,thread]+Sx[i,thread]*n_symbols**(k)#phi is the partition box name of the sequence: e.g.: (|0|..tau..|1|..tau..|0|) => box phi=2
                     k=k+1
-                p_xp[int(phi_x[n,node])]=p_xp[int(phi_x[n,node])]+1
+                p_xp[int(phi_x[n,thread])]=p_xp[int(phi_x[n,thread])]+1
         p_xp=p_xp/p_xp.sum()
         #calculating phi_yp, about the past of y
-        for node in range(nnodes):
+        for thread in range(nthreads):
             for n in range(tau*lyp,tslen):
-                phi_yp[n,node]=0
+                phi_yp[n,thread]=0
                 k=0
                 for i in range(n-tau*lyp,n,tau):
-                    phi_yp[n,node]=phi_yp[n,node]+Sy[i,node]*n_symbols**(k)
+                    phi_yp[n,thread]=phi_yp[n,thread]+Sy[i,thread]*n_symbols**(k)
                     k=k+1
-                p_yp[int(phi_yp[n,node])]=p_yp[int(phi_yp[n,node])]+1
+                p_yp[int(phi_yp[n,thread])]=p_yp[int(phi_yp[n,thread])]+1
         p_yp=p_yp/p_yp.sum()
         #calculating phi_yf, about the future of y
-        for node in range(nnodes):
+        for thread in range(nthreads):
             for n in range(0,tslen-tau*lyf):
-                phi_yf[n,node]=0
+                phi_yf[n,thread]=0
                 k=0
                 for i in range(n,n+tau*lyf,tau):
-                    phi_yf[n,node]=phi_yf[n,node]+Sy[i,node]*n_symbols**(k)
+                    phi_yf[n,thread]=phi_yf[n,thread]+Sy[i,thread]*n_symbols**(k)
                     k=k+1
-                p_yf[int(phi_yf[n,node])]=p_yf[int(phi_yf[n,node])]+1
+                p_yf[int(phi_yf[n,thread])]=p_yf[int(phi_yf[n,thread])]+1
         p_yf=p_yf/p_yf.sum()
         #calculating joint probabilities
-        for node in range(nnodes):
+        for thread in range(nthreads):
             for n in range(tslen):
-                if not(np.isnan(phi_x[n,node]) or np.isnan(phi_yp[n,node]) or np.isnan(phi_yf[n,node])):
-                    p_ypf[int(phi_yp[n,node]),int(phi_yf[n,node])]=p_ypf[int(phi_yp[n,node]),int(phi_yf[n,node])]+1
-                    p_xyp[int(phi_x[n,node]),int(phi_yp[n,node])]=p_xyp[int(phi_x[n,node]),int(phi_yp[n,node])]+1
-                    p_xypf[int(phi_x[n,node]),int(phi_yp[n,node]),int(phi_yf[n,node])]=p_xypf[int(phi_x[n,node]),int(phi_yp[n,node]),int(phi_yf[n,node])]+1
+                if not(np.isnan(phi_x[n,thread]) or np.isnan(phi_yp[n,thread]) or np.isnan(phi_yf[n,thread])):
+                    p_ypf[int(phi_yp[n,thread]),int(phi_yf[n,thread])]=p_ypf[int(phi_yp[n,thread]),int(phi_yf[n,thread])]+1
+                    p_xyp[int(phi_x[n,thread]),int(phi_yp[n,thread])]=p_xyp[int(phi_x[n,thread]),int(phi_yp[n,thread])]+1
+                    p_xypf[int(phi_x[n,thread]),int(phi_yp[n,thread]),int(phi_yf[n,thread])]=p_xypf[int(phi_x[n,thread]),int(phi_yp[n,thread]),int(phi_yf[n,thread])]+1
         p_ypf=p_ypf/p_ypf.sum()
         p_xyp=p_xyp/p_xyp.sum()
         p_xypf=p_xypf/p_xypf.sum()

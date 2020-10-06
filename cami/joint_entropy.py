@@ -1,4 +1,4 @@
-def joint_entropy(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,units='bits'):
+def joint_entropy(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=None,units='bits'):
     ''' Calculates the Joint Entropy
         of two variables from their time-series,
         allowing for different choices
@@ -94,73 +94,97 @@ def joint_entropy(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,u
     if units=='bits' or units=='nat' or units=='ban':
         pass
     else:
-        raise ValueError('Units must be bits or nat or . See help on function.')
+        raise ValueError('Units must be bits or nat or ban. See help on function.')
+    #interpolate missing data or trim if its in the edges
+    x,y=pd.to_numeric(x,errors='coerce'),pd.to_numeric(y,errors='coerce')
+    while np.isnan(x[0]) or np.isnan(y[0]):
+        x,y=x[1:],y[1:]
+    while np.isnan(x[-1]) or np.isnan(y[-1]):
+        x,y=x[:-1],y[:-1]
+    def interp_func(data):
+        idx_bads=np.isnan(data)
+        idx_goods=np.logical_not(idx_bads)
+        data_good=data[idx_goods]
+        interp_data=np.interp(idx_bads.nonzero()[0],idx_goods.nonzero()[0],data_good)
+        data[idx_bads]=interp_data
+        return data
+    x,y=interp_func(x),interp_func(y)
     #convert to symbolic sequence
     Sx,Sy=cami.symbolic_encoding(x,y,symbolic_type=symbolic_type,n_symbols=n_symbols)
     #calculate tau
     if tau==None:
-        xcorrel=np.correlate(x,x,mode='full')
-        xcorrel=xcorrel[len(x)-1:]/xcorrel[len(x)-1]
-        for i in range(1,len(xcorrel)):
-            if xcorrel[i-1]>0 and xcorrel[i]<=0:
-                tau=i
-                break        
+        def get_tau(data):
+            old_corr_val=1
+            tau=None
+            for i in range(1,len(data)):
+                new_corr_val=np.corrcoef(data[:-i],data[i:])[0,1]
+                if old_corr_val>0 and new_corr_val<=0:
+                    tau=i
+                    break
+                old_corr_val=new_corr_val
+            if tau==None:
+                tau=1
+            return tau
+        tau=max(get_tau(x),get_tau(y))
+        print('Selected tau=',tau,' by the method of first zero of auto-correlation',sep='')      
     #getting symbolic lengths (checking consistency)
     if type(symbolic_length)==int:
-        lx,ly = symbolic_length, 2*symbolic_length
+        lx,ly = symbolic_length, symbolic_length
     elif type(symbolic_length)==tuple or type(symbolic_length)==list:
         if len(symbolic_length)==2:
-            lx,ly = symbolic_length[0], symbolic_length[1]*2
-        elif len(symbolic_length)==3:
-            lx,ly = symbolic_length[0], symbolic_length[1]+symbolic_length[2]
+            lx,ly = symbolic_length[0], symbolic_length[1]
         else:
             raise TypeError('Error: Symbolic length must be int or list/tuple with 2 or 3 elements. See help on function')
     else:
         raise TypeError('Error: Symbolic length must be int or list/tuple with 2 or 3 elements. See help on function')
     #initializing boxes
-    phi_x=np.nan(tslen)
-    phi_y=np.nan(tslen)
+    tslen=len(x)
+    phi_x=np.full(tslen,np.nan)
+    phi_y=np.full(tslen,np.nan)
     #initializing probabilities of boxes
-    p_x=np.zeros(n_symbols^lx+1)
-    p_y=np.zeros(n_symbols^lx+1)
-    p_xy=np.zeros([n_symbols^lx+1,n_symbols^lx+1])
+    p_x=np.zeros(n_symbols**lx)
+    p_y=np.zeros(n_symbols**ly)
+    p_xy=np.zeros([n_symbols**lx,n_symbols**ly])
     #calculating phi_x
-    for n in range(tau*lx+1,tslen-tau*(ly-lx)):
+    for n in range(tau*lx,tslen):
         phi_x[n]=0
-        k=n-lx#running index for sum over tau-spaced elements
-        for i in range(n-tau*lx,n-tau,tau):
-            phi_x[n]=phi_x[n]+Sx[k]*n_symbols^((n-1)-k)
+        k=0
+        for i in range(n-tau*lx,n,tau):
+            phi_x[n]=phi_x[n]+Sx[i]*n_symbols**(k)#phi is the partition box name of the sequence: e.g.: (|0|..tau..|1|..tau..|0|) => box phi=2
             k=k+1
-        p_x[phi_x[n]]=p_xp[phi_x[n]]+1
+        p_x[int(phi_x[n])]=p_x[int(phi_x[n])]+1
     p_x=p_x/sum(p_x)
-    #calculating phi_yp, about the past of y
-    for n in range(tau*lx+1,tslen-tau*(ly-lx)):
+    #calculating phi_y
+    for n in range(tau*ly,tslen):
         phi_y[n]=0
-        k=n-lx
-        for i in range(n-tau*lx,n-tau,tau):
-            phi_y[n]=phi_y[n]+Sy[k]*n_symbols^((n-1)-k)
+        k=0
+        for i in range(n-tau*ly,n,tau):
+            phi_y[n]=phi_y[n]+Sy[i]*n_symbols**(k)
             k=k+1
-        p_y[phi_y[n]]=p_yp[phi_y[n]]+1
+        p_y[int(phi_y[n])]=p_y[int(phi_y[n])]+1
     p_y=p_y/sum(p_y)
     #calculating joint probability
-    for n in range(tau*lx+1,tslen-tau*(ly-lx)):
-        p_xy[phi_x[n],phi_y[n]]=p_xy[phi_x[n],phi_y[n]]+1
+    for n in range(tslen):
+        if not(np.isnan(phi_x[n]) or np.isnan(phi_y[n])):
+            p_xy[int(phi_x[n]),int(phi_y[n])]=p_xy[int(phi_x[n]),int(phi_y[n])]+1
     p_xy=p_xy/sum(sum(p_xy))
     
-    #calculating entropy
-    H=0;
-    h=np.zeros([n_symbols^lx,n_symbols^ly])
-    for i in range(n_symbols^lx):
-        for j in range(n_symbols^ly):
-            if p_xy[i,j]>1e-14:
-                if units=='nat':
+    #calculating joint entropy
+    H=0
+    h=np.zeros([n_symbols**lx,n_symbols**ly])
+    for i in range(n_symbols**lx):
+        for j in range(n_symbols**ly):
+            if p_xy[i,j]>0:
+                if units=='nat' or units=='nats':
                     h[i,j]=-p_xy[i,j]*np.log(p_xy[i,j])
-                elif units=='ban':
+                elif units=='ban' or units=='bans':
                     h[i,j]=-p_xy[i,j]*np.log10(p_xy[i,j])
                 else:
                     h[i,j]=-p_xy[i,j]*np.log2(p_xy[i,j])
-                H=H+h[i,j];
+                H=H+h[i,j]
             else:
                 h[i,j]=0
-
+    print('p: ',p_xy)
+    print('h: ',h)
+    print('H: ',H)
     return H
