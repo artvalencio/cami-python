@@ -341,13 +341,13 @@ def pointwise(x,y,method='normalized',symbolic_type='equal-divs',n_symbols=2,sym
         point_cami_yx=np.full(len(x),np.nan)
         point_te_yx=np.full(len(x),np.nan)
     lmax=max([lx,lyp,lyf])
-    for i in range(len(x)-lmax):
+    for i in range(len(Sx)-lmax):
         if not (np.isnan(phi_x[i+lx]) or np.isnan(phi_yp[i+lyp]) or np.isnan(phi_yf[i+lyf])):
             point_cami_xy[i]=pcami_xy[int(phi_x[i+lx]),int(phi_yp[i+lyp]),int(phi_yf[i+lyf])]
             point_mi[i]=pmi[int(phi_x[i+lx]),int(phi_yp[i+lyp])]
             point_te_xy[i]=pte_xy[int(phi_x[i+lx]),int(phi_yp[i+lyp]),int(phi_yf[i+lyf])]
     if two_sided==True:
-        for i in range(len(x)-lmax):
+        for i in range(len(Sx)-lmax):
             if not(np.isnan(iphi_x[i+lx]) or np.isnan(iphi_yp[i+lyp]) or np.isnan(iphi_yf[i+lyf])): 
                 point_cami_yx[i]=pcami_yx[int(iphi_x[i+lx]),int(iphi_yp[i+lyp]),int(iphi_yf[i+lyf])]
                 point_te_yx[i]=pte_yx[int(iphi_x[i+lx]),int(iphi_yp[i+lyp]),int(iphi_yf[i+lyf])]    
