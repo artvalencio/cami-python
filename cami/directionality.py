@@ -133,7 +133,7 @@ def directionality(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,
         print('Selected tau=',tau,' by the method of first zero of auto-correlation',sep='')   
     #get box probabilities
     p_xp,p_yp,p_yf,p_ypf,p_xyp,p_xypf,lx,lyp,lyf=cami.get_prob(Sx,Sy,n_symbols=n_symbols,symbolic_length=symbolic_length,tau=tau)
-    ip_xp,ip_yp,ip_yf,ip_ypf,ip_xyp,ip_xypf,__,__,__=cami.get_prob(Sy,Sx,n_symbols=n_symbols,symbolic_length=symbolic_length,tau=tau)
+    ip_x,ip_yp,ip_yf,ip_ypf,ip_xyp,ip_xypf,__,__,__=cami.get_prob(Sy,Sx,n_symbols=n_symbols,symbolic_length=symbolic_length,tau=tau)
     #calculate CaMI X->Y
     cami_xy=0
     pcami_xy=np.zeros([n_symbols**lx,n_symbols**lyp,n_symbols**lyf])
