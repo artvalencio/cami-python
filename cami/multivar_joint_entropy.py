@@ -1,5 +1,5 @@
-def total_entropy(x,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=None,units='bits'):
-    ''' Calculates the Total Entropy
+def multivar_joint_entropy(x,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=None,units='bits'):
+    ''' Calculates the Joint Entropy
         of a multivariate systems from
         their time-series,
         allowing for different choices
