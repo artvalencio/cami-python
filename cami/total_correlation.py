@@ -173,11 +173,11 @@ def total_correlation(x,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1
         else:
             raise ValueError('Error: Unacceptable argument of symbolic type. See help on function.')
         #Generating the symbolic sequences
-        def getsequence(x,xpart,tslen,nvars,partlen):
-            Sx=np.full([tslen,nvars],-1)
-            for var in range(nvars):
-                for n in range(tslen): #assign data points to partition symbols in x
-                    for i in range(partlen):
+        def getsequence(x,xpart):
+            Sx=np.full_like(x,-1)
+            for var in range(len(x[0,:])):
+                for n in range(len(x[:,var])): #assign data points to partition symbols in x
+                    for i in range(len(xpart)):
                         if x[n,var]<xpart[i]:
                             Sx[n,var]=i
                             break
@@ -185,15 +185,15 @@ def total_correlation(x,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1
                         Sx[n,var]=n_symbols-1
             return Sx      
         if symbolic_type=='equal-divs' or symbolic_type=='equal-points':
-            Sx = getsequence(x,xpart,tslen,nvars,n_symbols-1)
+            Sx = getsequence(x,xpart)
         elif symbolic_type=='equal-growth':
-            Sx = getsequence(xdiff,xpart,tslen-1,nvars,n_symbols-1)
+            Sx = getsequence(xdiff,xpart)
         elif symbolic_type=='equal-concavity':
-            Sx = getsequence(np.diff(x),xpart,tslen-1,nvars,n_symbols-1)
+            Sx = getsequence(np.diff(x),xpart)
         elif symbolic_type=='equal-concavity':
-            Sx = getsequence(xdiff2,xpart,tslen-2,nvars,n_symbols-1)
+            Sx = getsequence(xdiff2,xpart)
         elif symbolic_type=='equal-concavity-points':
-            Sx = getsequence(np.diff(np.diff(x)),xpart,tslen-2,nvars,n_symbols-1)
+            Sx = getsequence(np.diff(np.diff(x)),xpart)
         #Returning result
         return Sx
 
