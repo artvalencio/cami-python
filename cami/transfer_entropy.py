@@ -181,7 +181,7 @@ def transfer_entropy(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=
             if (p_xp[i]*p_yp[j]>0) and (p_xyp[i,j]>0):
                 if units=='nat' or units=='nats':
                     pmi[i,j]=p_xyp[i,j]*np.log(p_xyp[i,j]/(p_xp[i]*p_yp[j]))
-                elif units=='ban' or unis=='bans':
+                elif units=='ban' or units=='bans':
                     pmi[i,j]=p_xyp[i,j]*np.log10(p_xyp[i,j]/(p_xp[i]*p_yp[j]))
                 else:
                     pmi[i,j]=p_xyp[i,j]*np.log2(p_xyp[i,j]/(p_xp[i]*p_yp[j]))
