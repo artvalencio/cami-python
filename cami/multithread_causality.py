@@ -202,20 +202,20 @@ def multithread_causality(x,y,axis=1,symbolic_type='equal-divs',n_symbols=2,symb
         else:
             raise ValueError('Error: Unacceptable argument of symbolic type. See help on function.')
         #Generating the symbolic sequences
-        def getsequence(x,y,xpart,ypart,tslen,nthreads,partlen):
-            Sx=np.full([tslen,nthreads],-1)
-            Sy=np.full([tslen,nthreads],-1)
-            for thread in range(nthreads):
-                for n in range(tslen): #assign data points to partition symbols in x
-                    for i in range(partlen):
+        def getsequence(x,y,xpart,ypart):
+            Sx=np.full_like(x,-1)
+            Sy=np.full_like(y,-1)
+            for thread in range(len(x[0,:])):
+                for n in range(len(x[:,thread])): #assign data points to partition symbols in x
+                    for i in range(len(xpart)):
                         if x[n,thread]<xpart[i]:
                             Sx[n,thread]=i
                             break
                     if Sx[n,thread]==-1:
                         Sx[n,thread]=n_symbols-1
-            for thread in range(nthreads):
-                for n in range(tslen): #assign data points to partition symbols in y
-                    for i in range(partlen):
+            for thread in range(len(y[0,:])):
+                for n in range(len(y[:,thread])): #assign data points to partition symbols in y
+                    for i in range(len(ypart)):
                         if y[n,thread]<ypart[i]:
                             Sy[n,thread]=i
                             break
@@ -223,15 +223,15 @@ def multithread_causality(x,y,axis=1,symbolic_type='equal-divs',n_symbols=2,symb
                         Sy[n,thread]=n_symbols-1
             return Sx,Sy      
         if symbolic_type=='equal-divs' or symbolic_type=='equal-points':
-            Sx,Sy = getsequence(x,y,xpart,ypart,tslen,nthreads,n_symbols-1)
+            Sx,Sy = getsequence(x,y,xpart,ypart)
         elif symbolic_type=='equal-growth':
-            Sx,Sy = getsequence(xdiff,ydiff,xpart,ypart,tslen-1,nthreads,n_symbols-1)
+            Sx,Sy = getsequence(xdiff,ydiff,xpart,ypart)
         elif symbolic_type=='equal-concavity':
-            Sx,Sy = getsequence(np.diff(x),np.diff(y),xpart,ypart,tslen-1,nthreads,n_symbols-1)
+            Sx,Sy = getsequence(np.diff(x),np.diff(y),xpart,ypart)
         elif symbolic_type=='equal-concavity':
-            Sx,Sy = getsequence(xdiff2,ydiff2,xpart,ypart,tslen-2,nthreads,n_symbols-1)
+            Sx,Sy = getsequence(xdiff2,ydiff2,xpart,ypart)
         elif symbolic_type=='equal-concavity-points':
-            Sx,Sy = getsequence(np.diff(np.diff(x)),np.diff(np.diff(y)),xpart,ypart,tslen-2,nthreads,n_symbols-1)
+            Sx,Sy = getsequence(np.diff(np.diff(x)),np.diff(np.diff(y)),xpart,ypart)
         #Returning result
         return Sx,Sy
 
