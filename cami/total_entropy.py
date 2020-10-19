@@ -175,9 +175,9 @@ def total_entropy(x,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau
         #Generating the symbolic sequences
         def getsequence(x,xpart,tslen,nvars,partlen):
             Sx=np.full_like(x,-1)
-            for var in range(nvars):
+            for var in range(len(x[0,:])):
                 for n in range(len(x[:,var])): #assign data points to partition symbols in x
-                    for i in range(partlen):
+                    for i in range(len(xpart)):
                         if x[n,var]<xpart[i]:
                             Sx[n,var]=i
                             break
