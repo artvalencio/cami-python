@@ -27,7 +27,7 @@ Now you can import the package in Python 3 using: import cami
 
 Licence and acknoledgements
 
-Open source licence: MIT
+Open source licence: GNU GPL v3
 
 Developers: Arthur Valencio [1], Norma Valencio [2], Murilo S. Baptista [3]
 
@@ -39,30 +39,45 @@ Institutions:
 
 [3] Institute for Complex Systems and Mathematical Biology/University of Aberdeen
 
-Funders: FAPESP (S. Paulo Research Foundation), Brazil (2018-onwards). CNPq (National Council for Scientific and Technologic Development), Brazil (2015-2018).
+Funding agencies: FAPESP (S. Paulo Research Foundation), Brazil (2018-onwards). CNPq (National Council for Scientific and Technologic Development), Brazil (2015-2018).
 
 Acknowledgements: Arthur Valencio is supported by the FAPESP grant 2018/09900-8 and 	     acknowledges this work as part of the activities of the FAPESP Research 	     Innovation and Dissemination Center for Neuromathematics (grant 2013/07699-0, S. Paulo Research Foundation). A.V. contributions are partly derived from previous research funded by CNPq grant 206246/2014-5. N.V. is supported by CNPq research productivity fellowship (grant ). N.V. and M.S.B. are supported by The Royal Society (grant ).
 
 Licence text:
 
-Copyright (c) 2018 The Python Packaging Authority
+    CaMI Python: package for causality inference using information theory
+    
+    Copyright (C) 2020  Arthur Valencio, Norma Valencio, Murilo S. Baptista
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 -----------------------------------------------------------------------------
+
+Contact:
+
+Arthur Valencio
+
+e-mail: arthur(at)liv.unicamp.br
+
+address:
+
+Institute of Computing, Unicamp
+
+Av. Albert Einstein, 1251
+
+Cidade Universitaria
+
+Campinas/SP, Brazil
+
+CEP 13083-852 
