@@ -174,9 +174,9 @@ def total_entropy(x,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau
             raise ValueError('Error: Unacceptable argument of symbolic type. See help on function.')
         #Generating the symbolic sequences
         def getsequence(x,xpart,tslen,nvars,partlen):
-            Sx=np.full([tslen,nvars],-1)
+            Sx=np.full_like(x,-1)
             for var in range(nvars):
-                for n in range(tslen): #assign data points to partition symbols in x
+                for n in range(len(x[:,var])): #assign data points to partition symbols in x
                     for i in range(partlen):
                         if x[n,var]<xpart[i]:
                             Sx[n,var]=i
