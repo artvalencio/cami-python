@@ -1,4 +1,4 @@
-def directionality(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,units='bits'):
+def directionality(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,units='bits',tau=None):
     ''' Calculates the Directionality
         Index pointing the net causal
         information flow between two
@@ -58,6 +58,9 @@ def directionality(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,
                 e.g.: symbolic-length=(3,2,1) means 3 points of x and
                     2 points of y might predict 1 point of the future
                     of y
+    tau: int, None, optional
+        Time-delay of reconstruction va method of embedding (Takens'), in number
+        of steps. If None, calculates tau as the first zero of auto-correlation.
     units: str, optional
         Units to be used (base of the logarithm). Options:
             - 'bits': log2 is adopted (default)
