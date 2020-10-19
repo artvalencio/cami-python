@@ -184,7 +184,4 @@ def joint_entropy(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,t
                 H=H+h[i,j]
             else:
                 h[i,j]=0
-    print('p: ',p_xy)
-    print('h: ',h)
-    print('H: ',H)
     return H
