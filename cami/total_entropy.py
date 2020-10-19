@@ -199,8 +199,8 @@ def total_entropy(x,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau
 
     Sx=multivar_symbolic_encoding(x,symbolic_type=symbolic_type,n_symbols=n_symbols)      
 
-    tslen=len(x[:,0])
-    nvars=len(x[0,:])
+    tslen=len(Sx[:,0])
+    nvars=len(Sx[0,:])
     #get probs
     #initializing symbolic box-counter
     phi=np.full([tslen,nvars],np.nan)
@@ -221,7 +221,7 @@ def total_entropy(x,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau
     pjoint=np.zeros(maxidx)
     for n in range(tau*symbolic_length+1,tslen):
         for var in range(nvars):
-            if not np.isnan(int(phi[n,var])):
+            if not np.isnan(phi[n,var]):
                 pjoint[int(phi[n,var])]=pjoint[int(phi[n,var])]+1
     pjoint=pjoint/sum(pjoint)
    
