@@ -1,4 +1,4 @@
-def cami_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,L_limit=6,units='bits',make_plot=False):
+def cami_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,L_limit=6,units='bits',make_plot=False,verbose=False):
     ''' Calculates the Causal Mutual Information Rate
         between two variables given their
         observable time-series.
@@ -48,6 +48,8 @@ def cami_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,L_limit=6,units='
             - 'ban': log10 is adopted
     make_plot: bool, optional
         Whether to plot CaMI x L graph. Default: False.
+    verbose: bool, optional
+        Displays extra information about the calculation. Default: False.
     
     Returns
     -------
@@ -119,7 +121,8 @@ def cami_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,L_limit=6,units='
     #perform linear regression
     camir=linregress(np.arange(3)+idx+1,cami_val[idx:idx+3]).slope
     #display result
-    print('Causal Mutual Information Rate based on fitting from L=',idx+1,' to L=',idx+3,': ', camir)
+    if verbose==True:
+        print('Causal Mutual Information Rate based on fitting from L=',idx+1,' to L=',idx+3,': ', camir)
 
     #plot CaMI vs L
     if make_plot==True:

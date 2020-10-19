@@ -1,4 +1,4 @@
-def mutual_info_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,L_limit=6,units='bits',make_plot=False):
+def mutual_info_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,L_limit=6,units='bits',make_plot=False,verbose=False):
     ''' Calculates the Mutual Information Rate
         between two variables given their
         observable time-series.
@@ -48,6 +48,8 @@ def mutual_info_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,L_limit=6,
             - 'ban' or 'bans': log10 is adopted
     make_plot: bool, optional
         Whether to plot MI x L graph. Default: False.
+    verbose: bool, optional
+        Displays extra information about the calculation. Default: False.
         
     Returns
     -------
@@ -117,7 +119,8 @@ def mutual_info_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,L_limit=6,
     #perform linear regression
     mir=linregress(np.arange(3)+idx+1,mi[idx:idx+3]).slope
     #display result
-    print('Mutual Information Rate based on fitting from L=',idx+1,' to L=',idx+3,': ', mir)
+    if verbose==True:
+        print('Mutual Information Rate based on fitting from L=',idx+1,' to L=',idx+3,': ', mir)
 
     #plot MI vs L
     if make_plot==True:
