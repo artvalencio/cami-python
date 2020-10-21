@@ -1,4 +1,5 @@
-def pointwise(x,y,method='normalized',symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=None,units='bits',two_sided=False,make_plot=True):
+def pointwise(x,y,method='normalized',symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=None,units='bits',two_sided=False,
+              make_plot=True,alpha=0.5,figsize=None,dpi=None,labelsize=None,ticksize=None,save=False):
     ''' Calculates the Pointwise information
         measures between two variables given
         their observable time-series.
@@ -76,6 +77,20 @@ def pointwise(x,y,method='normalized',symbolic_type='equal-divs',n_symbols=2,sym
         Default: False (only X->Y)
     make_plot: bool,optional
         Whether to make scatter plot with the results or not. Default: True.
+    alpha: float, optional
+        Points transparency level for plot. Default: 0.5
+    figsize: 2D tuple or list, None, optional
+        Size of plot. Default: None (matplotlib standard)
+    dpi: int, None, optional
+        Plot resolution (dots per inch). Default: None (matplotlib standard)
+    labelsize: int, None, optional
+        Font size for plot labels. Default: None (matplolib standard)
+    ticksize: int, None, optional
+        Font size for plot tick values. Default: None (matplolib standard)
+    save: bool, 'colab', optional
+        True/False: whether to save or only display plot.
+        'colab': option to display and download plot when using Google Colab
+        Default: False
     
     Returns
     -------
@@ -357,39 +372,57 @@ def pointwise(x,y,method='normalized',symbolic_type='equal-divs',n_symbols=2,sym
     #plotting
     if make_plot==True:
         import matplotlib.pyplot as plt
+        fig=plt.figure(figsize=figsize,dpi=dpi)
+        if labelsize!=None:
+            plt.rcParams['axes.labelsize']=labelsize
+        if ticksize!=None:
+            plt.rcParams['xtick.labelsize']=ticksize
+            plt.rcParams['ytick.labelsize']=ticksize
         if two_sided==True:
-            fig,ax=plt.subplots(3,2)
-            im1=ax[0,0].scatter(x[:len(point_cami_xy)],y[:len(point_cami_xy)],c=point_cami_xy,cmap='bwr',marker='.',linewidths=0,edgecolors='none',alpha=0.5,vmin=-max(abs(min(point_cami_xy)),abs(max(point_cami_xy))),vmax=max(abs(min(point_cami_xy)),abs(max(point_cami_xy))))
-            ax[0,0].set_title(r'$CaMI_{X\rightarrow Y}$')
-            fig.colorbar(im1,ax=ax[0,0])
-            im2=ax[0,1].scatter(x[:len(point_cami_yx)],y[:len(point_cami_yx)],c=point_cami_yx,cmap='bwr',marker='.',linewidths=0,edgecolors='none',alpha=0.5,vmin=-max(abs(min(point_cami_yx)),abs(max(point_cami_yx))),vmax=max(abs(min(point_cami_yx)),abs(max(point_cami_yx))))
-            ax[0,1].set_title(r'$CaMI_{Y\rightarrow X}$')
-            fig.colorbar(im2,ax=ax[0,1])
-            im3=ax[1,0].scatter(x[:len(point_te_xy)],y[:len(point_te_xy)],c=point_te_xy,cmap='bwr',marker='.',linewidths=0,edgecolors='none',alpha=0.5,vmin=-max(abs(min(point_te_xy)),abs(max(point_te_xy))),vmax=max(abs(min(point_te_xy)),abs(max(point_te_xy))))
-            ax[1,0].set_title(r'$TE_{X\rightarrow Y}$')
-            fig.colorbar(im3,ax=ax[1,0])
-            im4=ax[1,1].scatter(x[:len(point_te_yx)],y[:len(point_te_yx)],c=point_te_yx,cmap='bwr',marker='.',linewidths=0,edgecolors='none',alpha=0.5,vmin=-max(abs(min(point_te_yx)),abs(max(point_te_yx))),vmax=max(abs(min(point_te_yx)),abs(max(point_te_yx))))
-            ax[1,1].set_title(r'$TE_{Y\rightarrow X}$')
-            fig.colorbar(im4,ax=ax[1,1])
-            im5=ax[2,0].scatter(x[:len(point_mi)],y[:len(point_mi)],c=point_mi,cmap='bwr',marker='.',linewidths=0,edgecolors='none',alpha=0.5,vmin=-max(abs(min(point_mi)),abs(max(point_mi))),vmax=max(abs(min(point_mi)),abs(max(point_mi))))
-            ax[2,0].set_title(r'Mutual Information')
-            fig.colorbar(im5,ax=ax[2,0])
-            im6=ax[2,1].scatter(x[:len(point_di)],y[:len(point_di)],c=point_di,cmap='bwr',marker='.',linewidths=0,edgecolors='none',alpha=0.5,vmin=-max(abs(min(point_di)),abs(max(point_di))),vmax=max(abs(min(point_di)),abs(max(point_di))))
-            ax[2,1].set_title(r'Directionality Index')
-            fig.colorbar(im6,ax=ax[2,1])
+            ax1=fig.add_subplot(321)
+            ax2=fig.add_subplot(322)
+            ax3=fig.add_subplot(323)
+            ax4=fig.add_subplot(324)
+            ax5=fig.add_subplot(325)
+            ax6=fig.add_subplot(326)
+            im1=ax1.scatter(x[:len(point_cami_xy)],y[:len(point_cami_xy)],c=point_cami_xy,cmap='bwr',marker='.',linewidths=0,edgecolors='none',alpha=alpha,vmin=-max(abs(min(point_cami_xy)),abs(max(point_cami_xy))),vmax=max(abs(min(point_cami_xy)),abs(max(point_cami_xy))))
+            ax1.set_title(r'$CaMI_{X\rightarrow Y}$')
+            fig.colorbar(im1,ax=ax1)
+            im2=ax2.scatter(x[:len(point_cami_yx)],y[:len(point_cami_yx)],c=point_cami_yx,cmap='bwr',marker='.',linewidths=0,edgecolors='none',alpha=alpha,vmin=-max(abs(min(point_cami_yx)),abs(max(point_cami_yx))),vmax=max(abs(min(point_cami_yx)),abs(max(point_cami_yx))))
+            ax2.set_title(r'$CaMI_{Y\rightarrow X}$')
+            fig.colorbar(im2,ax=ax2)
+            im3=ax3.scatter(x[:len(point_te_xy)],y[:len(point_te_xy)],c=point_te_xy,cmap='bwr',marker='.',linewidths=0,edgecolors='none',alpha=alpha,vmin=-max(abs(min(point_te_xy)),abs(max(point_te_xy))),vmax=max(abs(min(point_te_xy)),abs(max(point_te_xy))))
+            ax3.set_title(r'$TE_{X\rightarrow Y}$')
+            fig.colorbar(im3,ax=ax3)
+            im4=ax4.scatter(x[:len(point_te_yx)],y[:len(point_te_yx)],c=point_te_yx,cmap='bwr',marker='.',linewidths=0,edgecolors='none',alpha=alpha,vmin=-max(abs(min(point_te_yx)),abs(max(point_te_yx))),vmax=max(abs(min(point_te_yx)),abs(max(point_te_yx))))
+            ax4.set_title(r'$TE_{Y\rightarrow X}$')
+            fig.colorbar(im4,ax=ax4)
+            im5=ax5.scatter(x[:len(point_mi)],y[:len(point_mi)],c=point_mi,cmap='bwr',marker='.',linewidths=0,edgecolors='none',alpha=alpha,vmin=-max(abs(min(point_mi)),abs(max(point_mi))),vmax=max(abs(min(point_mi)),abs(max(point_mi))))
+            ax5.set_title(r'Mutual Information')
+            fig.colorbar(im5,ax=ax5)
+            im6=ax6.scatter(x[:len(point_di)],y[:len(point_di)],c=point_di,cmap='bwr',marker='.',linewidths=0,edgecolors='none',alpha=alpha,vmin=-max(abs(min(point_di)),abs(max(point_di))),vmax=max(abs(min(point_di)),abs(max(point_di))))
+            ax6.set_title(r'Directionality Index')
+            fig.colorbar(im6,ax=ax6)
         else:
-            fig,ax=plt.subplots(3,1)
-            im1=ax[0].scatter(x[:len(point_cami_xy)],y[:len(point_cami_xy)],c=point_cami_xy,cmap='bwr',marker='.',linewidths=0,edgecolors='none',alpha=0.5,vmin=-max(abs(min(point_cami_xy)),abs(max(point_cami_xy))),vmax=max(abs(min(point_cami_xy)),abs(max(point_cami_xy))))
-            ax[0].set_title(r'$CaMI_{X\rightarrow Y}$')
-            fig.colorbar(im1,ax=ax[0])
-            im2=ax[1].scatter(x[:len(point_te_xy)],y[:len(point_te_xy)],c=point_te_xy,cmap='bwr',marker='.',linewidths=0,edgecolors='none',alpha=0.5,vmin=-max(abs(min(point_te_xy)),abs(max(point_te_xy))),vmax=max(abs(min(point_te_xy)),abs(max(point_te_xy))))
-            ax[1].set_title(r'$TE_{X\rightarrow Y}$')
-            fig.colorbar(im2,ax=ax[1])
-            im3=ax[2].scatter(x[:len(point_mi)],y[:len(point_mi)],c=point_mi,cmap='bwr',marker='.',linewidths=0,edgecolors='none',alpha=0.5,vmin=-max(abs(min(point_mi)),abs(max(point_mi))),vmax=max(abs(min(point_mi)),abs(max(point_mi))))
-            ax[2].set_title(r'Mutual Information')
-            fig.colorbar(im3,ax=ax[2])
-        fig.tight_layout()
+            ax1=fig.add_subplot(311)
+            ax2=fig.add_subplot(312)
+            ax3=fig.add_subplot(313)
+            im1=ax1.scatter(x[:len(point_cami_xy)],y[:len(point_cami_xy)],c=point_cami_xy,cmap='bwr',marker='.',linewidths=0,edgecolors='none',alpha=alpha,vmin=-max(abs(min(point_cami_xy)),abs(max(point_cami_xy))),vmax=max(abs(min(point_cami_xy)),abs(max(point_cami_xy))))
+            ax1.set_title(r'$CaMI_{X\rightarrow Y}$')
+            fig.colorbar(im1,ax=ax1)
+            im2=ax2.scatter(x[:len(point_te_xy)],y[:len(point_te_xy)],c=point_te_xy,cmap='bwr',marker='.',linewidths=0,edgecolors='none',alpha=alpha,vmin=-max(abs(min(point_te_xy)),abs(max(point_te_xy))),vmax=max(abs(min(point_te_xy)),abs(max(point_te_xy))))
+            ax2.set_title(r'$TE_{X\rightarrow Y}$')
+            fig.colorbar(im2,ax=ax2)
+            im3=ax3.scatter(x[:len(point_mi)],y[:len(point_mi)],c=point_mi,cmap='bwr',marker='.',linewidths=0,edgecolors='none',alpha=alpha,vmin=-max(abs(min(point_mi)),abs(max(point_mi))),vmax=max(abs(min(point_mi)),abs(max(point_mi))))
+            ax3.set_title(r'Mutual Information')
+            fig.colorbar(im3,ax=ax3)
+        plt.tight_layout()
+        if save=='colab' or save=='True':
+            plt.savefig('fig.jpg')
         plt.show()
+        if save=='colab':
+            from google.colab import files
+            files.download('fig.jpg')
     
     #return results
     if two_sided==True:
