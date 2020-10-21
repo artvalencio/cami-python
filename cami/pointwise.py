@@ -1,5 +1,5 @@
 def pointwise(x,y,method='normalized',symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=None,units='bits',two_sided=False,
-              make_plot=True,alpha=0.5,figsize=None,dpi=None,labelsize=None,ticksize=None,save=False):
+              make_plot=True,alpha=0.5,figsize=None,dpi=None,labelsize=None,ticksize=None,titlesize=None,save=False):
     ''' Calculates the Pointwise information
         measures between two variables given
         their observable time-series.
@@ -87,6 +87,8 @@ def pointwise(x,y,method='normalized',symbolic_type='equal-divs',n_symbols=2,sym
         Font size for plot labels. Default: None (matplolib standard)
     ticksize: int, None, optional
         Font size for plot tick values. Default: None (matplolib standard)
+    ticksize: int, None, optional
+        Font size for subplot titles. Default: None (matplolib standard)
     save: bool, 'colab', optional
         True/False: whether to save or only display plot.
         'colab': option to display and download plot when using Google Colab
@@ -378,6 +380,8 @@ def pointwise(x,y,method='normalized',symbolic_type='equal-divs',n_symbols=2,sym
         if ticksize!=None:
             plt.rcParams['xtick.labelsize']=ticksize
             plt.rcParams['ytick.labelsize']=ticksize
+        if titlesize!=None:
+            plt.rcParams['axes.titlesize']=titlesize
         if two_sided==True:
             ax1=fig.add_subplot(321)
             ax2=fig.add_subplot(322)
