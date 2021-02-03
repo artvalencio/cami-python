@@ -1,4 +1,4 @@
-def cami(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=None,,delay=0,units='bits',two_sided=False):
+def cami(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=None,delay=0,units='bits',two_sided=False):
     ''' Calculates the Causal Mutual Information
         between two variables given their observable
         time-series.
