@@ -1,4 +1,4 @@
-def cami(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=None,units='bits',two_sided=False):
+def cami(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=None,,delay=0,units='bits',two_sided=False):
     ''' Calculates the Causal Mutual Information
         between two variables given their observable
         time-series.
@@ -59,6 +59,9 @@ def cami(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=None,u
     tau: int, None, optional
         Time-delay of reconstruction va method of embedding (Takens'), in number
         of steps. If None, calculates tau as the first zero of auto-correlation.
+    delay: int, optional
+        Time-delay to be considered between cause and effect, in number of steps.
+        Default: zero
     units: str, optional
         Units to be used (base of the logarithm). Options:
             - 'bits': log2 is adopted (default)
@@ -118,6 +121,10 @@ def cami(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=None,u
         data[idx_bads]=interp_data
         return data
     x,y=interp_func(x),interp_func(y)
+    if delay>0:
+        x,y=x[:-delay],y[delay:]
+    elif delay<0:
+        x,y=x[delay:],y[:-delay]
     #convert to symbolic sequence
     Sx,Sy=cami.symbolic_encoding(x,y,symbolic_type=symbolic_type,n_symbols=n_symbols)
     #calculate tau
