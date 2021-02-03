@@ -1,4 +1,4 @@
-def pointwise(x,y,method='normalized',symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=None,units='bits',two_sided=False,
+def pointwise(x,y,method='normalized',symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=None,delay=0,units='bits',two_sided=False,
               make_plot=True,alpha=0.5,figsize=None,dpi=None,labelsize=None,ticksize=None,titlesize=None,save=False):
     ''' Calculates the Pointwise information
         measures between two variables given
@@ -67,6 +67,9 @@ def pointwise(x,y,method='normalized',symbolic_type='equal-divs',n_symbols=2,sym
     tau: int, None, optional
         Time-delay of reconstruction via method of embedding (Takens'), in number
         of steps. default=None (first zero correlation crossing).
+    delay: int, optional
+        Time-delay to be considered between cause and effect, in number of steps.
+        Default: zero
     units: str, optional
         Units to be used (base of the logarithm). Options:
             - 'bit' or 'bits': log2 is adopted (default)
@@ -155,6 +158,11 @@ def pointwise(x,y,method='normalized',symbolic_type='equal-divs',n_symbols=2,sym
         data[idx_bads]=interp_data
         return data
     x,y=interp_func(x),interp_func(y)
+    if delay>0:
+        x,y=x[:-delay],y[delay:]
+    elif delay<0:
+        x,y=x[delay:],y[:-delay]
+    
     #convert to symbolic sequence
     Sx,Sy=cami.symbolic_encoding(x,y,symbolic_type=symbolic_type,n_symbols=n_symbols)
     #calculate tau
