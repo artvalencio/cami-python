@@ -1,4 +1,4 @@
-def cami_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,L_limit=6,units='bits',make_plot=False,verbose=False):
+def cami_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,L_limit=6,delay=0,units='bits',make_plot=False,verbose=False):
     ''' Calculates the Causal Mutual Information Rate
         between two variables given their
         observable time-series.
@@ -41,6 +41,9 @@ def cami_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,L_limit=6,units='
         enable identification of linear CaMI x L section, but values
         too high come with computational cost without significant
         benefits. Default: 6.
+    delay: int, optional
+        Time-delay to be considered between cause and effect, in number of steps.
+        Default: zero
     units: str, optional
         Units to be used (base of the logarithm). Options:
             - 'bits': log2 is adopted (default)
@@ -103,7 +106,11 @@ def cami_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,L_limit=6,units='
         data[idx_bads]=interp_data
         return data
     x,y=interp_func(x),interp_func(y)
-
+    if delay>0:
+        x,y=x[:-delay],y[delay:]
+    elif delay<0:
+        x,y=x[delay:],y[:-delay]
+        
     #calculate cami as a function of symbolic length
     cami_val=np.zeros(L_limit)
     for L in range(1,L_limit+1):
