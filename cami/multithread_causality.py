@@ -1,4 +1,4 @@
-def multithread_causality(x,y,axis=1,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=None,units='bits',two_sided=False):
+def multithread_causality(x,y,axis=1,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=None,delay=0,units='bits',two_sided=False):
     ''' Calculates Information Theory
         values based on many independent
         observation of two variables
@@ -66,6 +66,9 @@ def multithread_causality(x,y,axis=1,symbolic_type='equal-divs',n_symbols=2,symb
             - 'average' or 'mean' or None: average of first zero correlation crossing in all trials
             - 'maximum' or max: maximum of first zero correlation crossing in all trials
             - 'median' or 'med': median of first zero correlation crossing in all trials
+    delay: int, optional
+        Time-delay to be considered between cause and effect, in number of steps.
+        Default: zero
     units: str, optional
         Units to be used (base of the logarithm). Options:
             - 'bit' or 'bits': log2 is adopted (default)
@@ -129,6 +132,10 @@ def multithread_causality(x,y,axis=1,symbolic_type='equal-divs',n_symbols=2,symb
         return data
     for i in range(len(x[0,:])):
         x[:,i],y[:,i]=interp_func(x[:,i]),interp_func(y[:,i])
+    if delay>0:
+        x,y=x[:-delay,:],y[delay:,:]
+    elif delay<0:
+        x,y=x[delay:,:],y[:-delay,:]
 
     #select tau
     def get_tau(data):
