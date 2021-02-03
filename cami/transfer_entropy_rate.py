@@ -1,4 +1,4 @@
-def transfer_entropy_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,L_limit=6,units='bits',make_plot=False,verbose=False):
+def transfer_entropy_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,L_limit=6,delay=0,units='bits',make_plot=False,verbose=False):
     ''' Calculates the Transfer Entropy Rate
         between two variables given their
         observable time-series.
@@ -41,6 +41,9 @@ def transfer_entropy_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,L_lim
         identification of linear TE x L section, but values too high
         come with computational cost without significant benefits.
         Default: 6.
+    delay: int, optional
+        Time-delay to be considered between cause and effect, in number of steps.
+        Default: zero
     units: str, optional
         Units to be used (base of the logarithm). Options:
             - 'bit' or 'bits': log2 is adopted (default)
@@ -103,6 +106,10 @@ def transfer_entropy_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,L_lim
         data[idx_bads]=interp_data
         return data
     x,y=interp_func(x),interp_func(y)
+    if delay>0:
+        x,y=x[:-delay],y[delay:]
+    elif delay<0:
+        x,y=x[delay:],y[:-delay]
 
     #calculate transfer entropy as a function of symbolic length
     te=np.zeros(L_limit)
