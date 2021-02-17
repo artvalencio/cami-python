@@ -1,4 +1,4 @@
-def multithread_causality(x,y,axis=1,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=None,delay=0,units='bits',two_sided=False):
+def multithread_causality(x,y,axis=1,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=None,delay=0,units='bits',many_nans=False,two_sided=False):
     ''' Calculates Information Theory
         values based on many independent
         observation of two variables
@@ -74,6 +74,8 @@ def multithread_causality(x,y,axis=1,symbolic_type='equal-divs',n_symbols=2,symb
             - 'bit' or 'bits': log2 is adopted (default)
             - 'nat' or 'nats': ln is adopted
             - 'ban' or 'bans': log10 is adopted
+    many_nans: bool, optional
+        Whether the input data has too many nans or not. Default: False.
     two_sided: bool, optional
         Whether to calculate the quantitites in X->Y and Y->X directions
         or only on X->Y. Default: False (only X->Y)
@@ -115,14 +117,17 @@ def multithread_causality(x,y,axis=1,symbolic_type='equal-divs',n_symbols=2,symb
     #interpolate missing data or trim if its in the edges
     x,y=pd.DataFrame(x),pd.DataFrame(y)
     x[:],y[:]=x[:].apply(pd.to_numeric,errors='coerce',axis=1),y[:].apply(pd.to_numeric,errors='coerce',axis=1)
-    x,y=x.to_numpy(dtype='np.float64'),y.to_numpy(dtype='np.float64')
+    x,y=x.to_numpy(dtype=np.float64),y.to_numpy(dtype=np.float64)
     for i in range(len(x[0,:])):
         while np.isnan(x[0,i]) or np.isnan(y[0,i]):
             x[:-1,i],y[:-1,i]=x[1:,i],y[1:,i]
             x[-1,i],y[-1,i]=np.nan,np.nan
-    for i in range(len(x[0,:])):
-        while np.isnan(x[-1,i]) or np.isnan(y[-1,i]):
-            x,y=x[:-1,:],y[:-1,:]
+    #for data with many nans it is advisable to fill the final nans with last value, or you will chop off too much data in all threads
+    #otherwise,the preferrable is to chop down the last values as it captures best the true dynamics
+    if not many_nans:
+        for i in range(len(x[0,:])):
+            while np.isnan(x[-1,i]) or np.isnan(y[-1,i]):
+                x,y=x[:-1,:],y[:-1,:]
     def interp_func(data):
         idx_bads=np.isnan(data)
         idx_goods=np.logical_not(idx_bads)
