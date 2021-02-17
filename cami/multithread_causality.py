@@ -115,7 +115,7 @@ def multithread_causality(x,y,axis=1,symbolic_type='equal-divs',n_symbols=2,symb
     #interpolate missing data or trim if its in the edges
     x,y=pd.DataFrame(x),pd.DataFrame(y)
     x[:],y[:]=x[:].apply(pd.to_numeric,errors='coerce',axis=1),y[:].apply(pd.to_numeric,errors='coerce',axis=1)
-    x,y=x.to_numpy(),y.to_numpy()
+    x,y=x.to_numpy(dtype='np.float64'),y.to_numpy(dtype='np.float64')
     for i in range(len(x[0,:])):
         while np.isnan(x[0,i]) or np.isnan(y[0,i]):
             x[:-1,i],y[:-1,i]=x[1:,i],y[1:,i]
