@@ -118,13 +118,13 @@ def multithread_causality(x,y,axis=1,symbolic_type='equal-divs',n_symbols=2,symb
     x,y=pd.DataFrame(x),pd.DataFrame(y)
     x[:],y[:]=x[:].apply(pd.to_numeric,errors='coerce',axis=1),y[:].apply(pd.to_numeric,errors='coerce',axis=1)
     x,y=x.to_numpy(dtype=np.float64),y.to_numpy(dtype=np.float64)
-    for i in range(len(x[0,:])):
-        while np.isnan(x[0,i]) or np.isnan(y[0,i]):
-            x[:-1,i],y[:-1,i]=x[1:,i],y[1:,i]
-            x[-1,i],y[-1,i]=np.nan,np.nan
-    #for data with many nans it is advisable to fill the final nans with last value, or you will chop off too much data in all threads
-    #otherwise,the preferrable is to chop down the last values as it captures best the true dynamics
+    #for data with many nans it is advisable to pad the start/finish with the first/last value, otherwise you will chop off too much data across threads
+    #if you only have few nans (usual), the preferrable way is to chop down these nans at the edges, as this way captures best the true dynamics
     if not many_nans:
+        for i in range(len(x[0,:])):
+            while np.isnan(x[0,i]) or np.isnan(y[0,i]):
+                x[:-1,i],y[:-1,i]=x[1:,i],y[1:,i]
+                x[-1,i],y[-1,i]=np.nan,np.nan
         for i in range(len(x[0,:])):
             while np.isnan(x[-1,i]) or np.isnan(y[-1,i]):
                 x,y=x[:-1,:],y[:-1,:]
@@ -178,8 +178,8 @@ def multithread_causality(x,y,axis=1,symbolic_type='equal-divs',n_symbols=2,symb
                 ypart.append(ymin+i*(ymax-ymin)/n_symbols)
         elif symbolic_type=='equal-points':
             xtemp,ytemp=x.copy(),y.copy()
-            xtemp.reshape(-1)
-            ytemp.reshape(-1)
+            xtemp=xtemp.reshape(-1)
+            ytemp=ytemp.reshape(-1)
             xsort,ysort = np.sort(xtemp),np.sort(ytemp)
             xpart,ypart = [],[]
             for i in range(1,n_symbols):
