@@ -6,7 +6,7 @@ from .transfer_entropy import *
 from .directionality import *
 from .symbolic_encoding import *
 from .get_prob import *
-from .multithread_causality import *
+#from .multithread_causality import *
 from .pointwise import *
 from .total_correlation import *
 from .multivar_joint_entropy import *

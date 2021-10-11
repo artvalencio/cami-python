@@ -1,4 +1,4 @@
-def mutual_info_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,L_limit=6,delay=0,units='bits',make_plot=False,verbose=False):
+def mutual_info_rate(x,y,x_divs=None,y_divs=None,symbolic_type='equal-divs',n_symbols=2,tau=1,L_limit=6,delay=0,units='bits',make_plot=False,verbose=False):
     ''' Calculates the Mutual Information Rate
         between two variables given their
         observable time-series.
@@ -8,7 +8,17 @@ def mutual_info_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,L_limit=6,
     x: list, tuple, np.array, pd.Series
         The first time-series
     y: list, tuple, np.array, pd.Series
-        The second time-series
+        The second time-series    
+    x_divs: float,list,tuple, np.array, pd.Series, None, optional
+            Partition divisions for the x variable. Select None for placing
+            the divisions according to one of the symbolic-type options.
+            Must have same length as y_divs.
+            Default: None.
+    y_divs: float,list,tuple, np.array, pd.Series, None, optional
+            Partition divisions for the y variable. Select None for placing
+            the divisions according to one of the symbolic-type options.
+            Must have same length as x_divs.
+            Default: None. 
     symbolic-type: str, optional
         Type of symbolic encoding. Options:
             - 'equal-divs': equal-sized divisions are
@@ -76,9 +86,10 @@ def mutual_info_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,L_limit=6,
     total_correlation: calculates the ammount of mutual
         of a set of variables
 
-    Example
+    Examples
     -------
-    mutual_info_rate(x,y,symbolic_type='equal-points',n_symbols=10)
+    mir = mutual_info_rate(x,y,symbolic_type='equal-points',n_symbols=10)
+    mir = mutual_info_rate(x,y,x_divs=[0.1,0.3],y_divs=[0.4,0.8])
     '''
     #import libraries
     import numpy as np
@@ -112,7 +123,10 @@ def mutual_info_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,L_limit=6,
     #calculate mutual info as a function of symbolic length
     mi=np.zeros(L_limit)
     for L in range(1,L_limit+1):
-        mi[L-1]=cami.mutual_info(x,y,symbolic_type=symbolic_type,n_symbols=n_symbols,symbolic_length=L,tau=tau,units=units)
+        if x_divs==None and y_divs==None:
+            mi[L-1]=cami.mutual_info(x,y,symbolic_type=symbolic_type,n_symbols=n_symbols,symbolic_length=L,tau=tau,units=units)
+        else:
+            mi[L-1]=cami.mutual_info(x,y,x_divs=x_divs,y_divs=y_divs,symbolic_length=L,tau=tau,units=units)
 
     #finding the linear part (or the closest to linear)
     mi_diff2=np.diff(np.diff(mi))

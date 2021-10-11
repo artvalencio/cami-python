@@ -1,4 +1,4 @@
-def total_correlation(x,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=None,units='bits'):
+def total_correlation(x,x_divs=None,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=1,units='bits'):
     ''' Calculates the Total Entropy
         of a multivariate systems from
         their time-series,
@@ -7,9 +7,15 @@ def total_correlation(x,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1
 
     Parameters
     ----------
-    x: list, tuple, np.array, pd.Series
-        The multivariate time-series, with each column
-        representing one variable
+    x: list, tuple, np.array, pd.DataFrame
+        The multivariate time-series, with each column x[:,i] representing one variable
+    x_divs: 2D list, 2D tuple, None, optional
+        Partition divisions for the x multivariable. In x_divs=[[a0,b0,c0],[a1,b1,c1],...],
+        [a0,b0,c0] are the divisions for the first variable (x[:,0]),
+        [a1,b1,c1] are the divisions for the second variable (x[:,1]) and so on.
+        Select None for automatically placing the divisions according to one of
+        the symbolic-type options (preliminary rescaling required).
+        Default: None.
     symbolic-type: str, optional
         Type of binning or symbolic encoding. Options:
             - 'equal-divs': equal-sized divisions are
@@ -197,7 +203,32 @@ def total_correlation(x,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1
         #Returning result
         return Sx
 
-    Sx=multivar_symbolic_encoding(x,symbolic_type=symbolic_type,n_symbols=n_symbols)      
+    def multivar_symbolic_encoding2(x,x_divs):
+        tslen=len(x[:,0])
+        nvars=len(x[0,:])
+        n_symbols=len(x_divs[0])+1
+        def getsequence(x,xdivs):
+            Sx=np.full_like(x,-1)
+            for var in range(nvars):
+                for n in range(tslen): #assign data points to partition symbols in x
+                    for i in range(n_symbols-1):
+                        if x[n,var]<x_divs[var,i]:
+                            Sx[n,var]=i
+                            break
+                    if Sx[n,var]==-1:
+                        Sx[n,var]=n_symbols-1
+            return Sx
+        
+    if x_divs==None:
+        Sx=multivar_symbolic_encoding(x,symbolic_type=symbolic_type,n_symbols=n_symbols)      
+    else:
+        if not(type(x_divs)==list or type(x_divs)==tuple):
+            raise TypeError("x_divs must be 2D list, 2D tuple or None. Example: x_divs=[[0.3,0.4],[0.1,0.5],[0.3,0.2]]")
+        for i in len(x_divs):
+            if len(x_divs[i])!=len(x_divs[0]):
+                raise ValueError("length of every x_divs column must be equal (same number of divisions for each variable)")
+        Sx=multivar_symbolic_encoding2(x,x_divs)
+        n_symbols=len(x_divs[0])
 
     tslen=len(Sx[:,0])
     nvars=len(Sx[0,:])

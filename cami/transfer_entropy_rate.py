@@ -1,4 +1,4 @@
-def transfer_entropy_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,L_limit=6,delay=0,units='bits',make_plot=False,verbose=False):
+def transfer_entropy_rate(x,y,x_divs=None,y_divs=None,symbolic_type='equal-divs',n_symbols=2,tau=1,L_limit=6,delay=0,units='bits',make_plot=False,verbose=False):
     ''' Calculates the Transfer Entropy Rate
         between two variables given their
         observable time-series.
@@ -9,6 +9,16 @@ def transfer_entropy_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,L_lim
         The first time-series
     y: list, tuple, np.array, pd.Series
         The second time-series
+    x_divs: float,list,tuple, np.array, pd.Series, None, optional
+        Partition divisions for the x variable. Select None for placing
+        the divisions according to one of the symbolic-type options.
+        Must have same length as y_divs.
+        Default: None.
+    y_divs: float,list,tuple, np.array, pd.Series, None, optional
+        Partition divisions for the y variable. Select None for placing
+        the divisions according to one of the symbolic-type options.
+        Must have same length as x_divs.
+        Default: None. 
     symbolic-type: str, optional
         Type of symbolic encoding. Options:
             - 'equal-divs': equal-sized divisions are
@@ -78,9 +88,10 @@ def transfer_entropy_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,L_lim
     total_correlation: calculates the ammount of mutual
         of a set of variables
 
-    Example
+    Examples
     -------
-    transfer_entropy_rate(x,y,symbolic_type='equal-points',n_symbols=10,units='bits')
+    ter = transfer_entropy_rate(x,y,symbolic_type='equal-points',n_symbols=10,units='bits')
+    ter = transfer_entropy_rate(x,y,x_divs=[0.1,0.4],y_divs=[0.2,0.4],L_limit=8)
     '''
     #import libraries
     import numpy as np
@@ -114,8 +125,11 @@ def transfer_entropy_rate(x,y,symbolic_type='equal-divs',n_symbols=2,tau=1,L_lim
     #calculate transfer entropy as a function of symbolic length
     te=np.zeros(L_limit)
     for L in range(1,L_limit+1):
-        te[L-1]=cami.transfer_entropy(x,y,symbolic_type=symbolic_type,n_symbols=n_symbols,symbolic_length=L,tau=tau,units=units)
-
+        if x_divs==None and y_divs==None:
+            te[L-1]=cami.transfer_entropy(x,y,symbolic_type=symbolic_type,n_symbols=n_symbols,symbolic_length=L,tau=tau,units=units)
+        else:
+            te[L-1]=cami.transfer_entropy(x,y,x_divs=x_divs,y_divs=y_divs,symbolic_length=L,tau=tau,units=units)
+            
     #finding the linear part (or the closest to linear)
     te_diff2=np.diff(np.diff(te))
     a=min(abs(te_diff2))

@@ -1,4 +1,4 @@
-def directionality(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,delay=0,units='bits',tau=None):
+def directionality(x,y,x_divs=None,y_divs=None,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,delay=0,units='bits',tau=1):
     ''' Calculates the Directionality
         Index pointing the net causal
         information flow between two
@@ -11,6 +11,16 @@ def directionality(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,
         The first time-series
     y: list, tuple, np.array, pd.Series
         The second time-series
+    x_divs: float,list,tuple, np.array, pd.Series, None, optional
+        Partition divisions for the x variable. Select None for placing
+        the divisions according to one of the symbolic-type options.
+        Must have same length as y_divs.
+        Default: None.
+    y_divs: float,list,tuple, np.array, pd.Series, None, optional
+        Partition divisions for the y variable. Select None for placing
+        the divisions according to one of the symbolic-type options.
+        Must have same length as x_divs.
+        Default: None. 
     symbolic-type: str, optional
         Type of symbolic encoding. Options:
             - 'equal-divs': equal-sized divisions are
@@ -91,8 +101,8 @@ def directionality(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,
 
     Example
     -------
-    di = directionality(x,y,symbolic_type='equal-points',n_symbols=10,
-        symbolic_length=1)
+    di = directionality(x,y,symbolic_type='equal-points',n_symbols=10,symbolic_length=1)
+    di = directionality(x,y,x_divs=[0.2,0.6],y_divs=[0.3,0.7],symbolic_length=3)
     '''
     import numpy as np
     import pandas as pd
@@ -122,7 +132,19 @@ def directionality(x,y,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,
         x,y=x[delay:],y[:-delay]
     
     #convert to symbolic sequence
-    Sx,Sy=cami.symbolic_encoding(x,y,symbolic_type=symbolic_type,n_symbols=n_symbols)
+    if type(x_divs)==int or type(x_divs)==float:
+        x_divs=[x_divs]
+    if type(y_divs)==int or type(y_divs)==float:
+        y_divs=[y_divs]
+    if x_divs==None and y_divs==None:
+        Sx,Sy=cami.symbolic_encoding(x,y,symbolic_type=symbolic_type,n_symbols=n_symbols)
+    elif (x_divs==None and y_divs!=None) or (x_divs!=None and y_divs==None):
+        raise ValueError("Inconsistent use of partition divisions: x_divs and y_divs must both be None or both be a float, list or tuple of same length")
+    elif len(x_divs)!=len(y_divs):
+        raise ValueError("x_divs and y_divs must have same length")
+    else:
+        Sx,Sy=cami.symbolic_encoding(x,y,x_divs=x_divs,y_divs=y_divs)
+        n_symbols=len(x_divs)+1
     #calculate tau
     if tau==None:
         def get_tau(data):

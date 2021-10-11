@@ -1,4 +1,4 @@
-def entropy(x,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=None,units='bits'):
+def entropy(x,x_divs=None,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=1,units='bits'):
     ''' Calculates the Shannon Entropy
         of a variable from its time-series,
         allowing for different choices
@@ -8,6 +8,10 @@ def entropy(x,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=None,
     ----------
     x: list, tuple, np.array, pd.Series
         The time-series
+    x_divs: float,list,tuple, np.array, pd.Series, None, optional
+        Partition divisions for the x variable. Select None for placing
+        the divisions according to one of the symbolic-type options.
+        Default: None.
     symbolic-type: str, optional
         Type of binning or symbolic encoding. Options:
             - 'equal-divs': equal-sized divisions are
@@ -39,6 +43,9 @@ def entropy(x,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=None,
         length = 1 means simple binning (default), whereas
         values greater than 1 mean that more than one data point
         is required to produce an unit of meaningful information.
+    tau: int, None, optional
+        Time-delay of reconstruction va method of embedding (Takens'), in number
+        of steps. If None, calculates tau as the first zero of auto-correlation.
     units: str, optional
         Units to be used (base of the logarithm). Options:
             - 'bits': log2 is adopted (default)
@@ -103,40 +110,56 @@ def entropy(x,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=None,
     
     #generating partitions (checking consistency)
     tslen=len(x)
-    if symbolic_type=='equal-divs':
-        xmin,xmax = x.min(),x.max()
-        xpart=[]
-        for i in range(1,n_symbols):
-            xpart.append(xmin+i*(xmax-xmin)/n_symbols)
-    elif symbolic_type=='equal-points':
-        xsort = np.sort(x)
-        xpart = []
-        for i in range(1,n_symbols):
-            xpart.append(xsort[int(i*tslen/n_symbols)])
-    elif symbolic_type=='equal-growth':
-        xdiff = np.diff(x)
-        xmin,xmax = min(xdiff),max(xdiff)
-        xpart=[]
-        for i in range(1,n_symbols):
-            xpart.append(xmin+i*(xmax-xmin)/n_symbols)
-    elif symbolic_type=='equal-growth-points':
-        xdiffsort = np.sort(np.diff(x))
-        xpart = []
-        for i in range(1,n_symbols):
-            xpart.append(xdiffsort[int(i*(tslen-1)/n_symbols)])
-    elif symbolic_type=='equal-concavity':
-        xdiff2 = np.diff(np.diff(x))
-        xmin,xmax = min(xdiff2),max(xdiff2)
-        xpart=[]
-        for i in range(1,n_symbols):
-            xpart.append(xmin+i*(xmax-xmin)/n_symbols)
-    elif symbolic_type=='equal-concavity-points':
-        xdiff2sort = np.sort(np.diff(np.diff(x)))
-        xpart = []
-        for i in range(1,n_symbols):
-            xpart.append(xdiff2sort[int(i*(tslen-2)/n_symbols)])
+    if x_divs==None:
+        if symbolic_type=='equal-divs':
+            xmin,xmax = x.min(),x.max()
+            xpart=[]
+            for i in range(1,n_symbols):
+                xpart.append(xmin+i*(xmax-xmin)/n_symbols)
+        elif symbolic_type=='equal-points':
+            xsort = np.sort(x)
+            xpart = []
+            for i in range(1,n_symbols):
+                xpart.append(xsort[int(i*tslen/n_symbols)])
+        elif symbolic_type=='equal-growth':
+            xdiff = np.diff(x)
+            xmin,xmax = min(xdiff),max(xdiff)
+            xpart=[]
+            for i in range(1,n_symbols):
+                xpart.append(xmin+i*(xmax-xmin)/n_symbols)
+        elif symbolic_type=='equal-growth-points':
+            xdiffsort = np.sort(np.diff(x))
+            xpart = []
+            for i in range(1,n_symbols):
+                xpart.append(xdiffsort[int(i*(tslen-1)/n_symbols)])
+        elif symbolic_type=='equal-concavity':
+            xdiff2 = np.diff(np.diff(x))
+            xmin,xmax = min(xdiff2),max(xdiff2)
+            xpart=[]
+            for i in range(1,n_symbols):
+                xpart.append(xmin+i*(xmax-xmin)/n_symbols)
+        elif symbolic_type=='equal-concavity-points':
+            xdiff2sort = np.sort(np.diff(np.diff(x)))
+            xpart = []
+            for i in range(1,n_symbols):
+                xpart.append(xdiff2sort[int(i*(tslen-2)/n_symbols)])
+        else:
+            raise ValueError('Error: Unacceptable argument of symbolic type. See help on function.')
     else:
-        raise ValueError('Error: Unacceptable argument of symbolic type. See help on function.')
+        if type(x_divs)==int or type(x_divs)==float:
+            x_divs=[x_divs]
+        def convert_to_list(a):
+            if type(a)==tuple:
+                a=list(a)
+            elif type(a)==np.ndarray:
+                a=a.tolist()
+            elif type(a)==pd.Series:
+                a=a.to_list()
+            elif type(a)!=list:
+                raise ValueError("partition data type not supported. x_divs and y_divs must both be None or both be a float, list or tuple of same length")
+            return a
+        xpart=convert_to_list(x_divs)
+        n_symbols=len(xpart)+1
 
     #Generating the symbolic sequences
     def getsequence(x,xpart,tslen,partlen):
@@ -147,19 +170,22 @@ def entropy(x,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=None,
                     Sx[n]=i
                     break
             if Sx[n]==-1:
-                Sx[n]=n_symbols-1
+                Sx[n]=partlen
         return Sx
     #convert to symbolic sequence
-    if symbolic_type=='equal-divs' or symbolic_type=='equal-points':
-        Sx = getsequence(x,xpart,tslen,n_symbols-1)
-    elif symbolic_type=='equal-growth':
-        Sx = getsequence(xdiff,xpart,tslen-1,n_symbols-1)
-    elif symbolic_type=='equal-concavity':
-        Sx = getsequence(np.diff(x),xpart,tslen-1,n_symbols-1)
-    elif symbolic_type=='equal-concavity':
-        Sx = getsequence(xdiff2,xpart,tslen-2,n_symbols-1)
-    elif symbolic_type=='equal-concavity-points':
-        Sx = getsequence(np.diff(np.diff(x)),xpart,tslen-2,n_symbols-1)
+    if x_divs==None:
+        if symbolic_type=='equal-divs' or symbolic_type=='equal-points':
+            Sx = getsequence(x,xpart,tslen,n_symbols-1)
+        elif symbolic_type=='equal-growth':
+            Sx = getsequence(xdiff,xpart,tslen-1,n_symbols-1)
+        elif symbolic_type=='equal-concavity':
+            Sx = getsequence(np.diff(x),xpart,tslen-1,n_symbols-1)
+        elif symbolic_type=='equal-concavity':
+            Sx = getsequence(xdiff2,xpart,tslen-2,n_symbols-1)
+        elif symbolic_type=='equal-concavity-points':
+            Sx = getsequence(np.diff(np.diff(x)),xpart,tslen-2,n_symbols-1)
+    else:
+         Sx = getsequence(x,xpart,tslen,len(xpart))   
     
     #getting tau if not given
     if tau==None:
