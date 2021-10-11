@@ -68,7 +68,7 @@ Contact:
 
 Arthur Valencio
 
-e-mail: arthur(at)liv.unicamp.br
+e-mail: arthuric(at)unicamp.br
 
 address:
 
