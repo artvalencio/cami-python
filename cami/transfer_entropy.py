@@ -141,9 +141,9 @@ def transfer_entropy(x,y,x_divs=None,y_divs=None,symbolic_type='equal-divs',n_sy
         x_divs=[x_divs]
     if type(y_divs)==int or type(y_divs)==float:
         y_divs=[y_divs]
-    if x_divs==None and y_divs==None:
+    if (x_divs is None) and (y_divs is None):
         Sx,Sy=cami.symbolic_encoding(x,y,symbolic_type=symbolic_type,n_symbols=n_symbols)
-    elif (x_divs==None and y_divs!=None) or (x_divs!=None and y_divs==None):
+    elif ((x_divs is None) and (y_divs is not None)) or ((x_divs is not None) and (y_divs is None)):
         raise ValueError("Inconsistent use of partition divisions: x_divs and y_divs must both be None or both be a float, list or tuple of same length")
     elif len(x_divs)!=len(y_divs):
         raise ValueError("x_divs and y_divs must have same length")
@@ -151,7 +151,7 @@ def transfer_entropy(x,y,x_divs=None,y_divs=None,symbolic_type='equal-divs',n_sy
         Sx,Sy=cami.symbolic_encoding(x,y,x_divs=x_divs,y_divs=y_divs)
         n_symbols=len(x_divs)+1
     #calculate tau
-    if tau==None:
+    if tau is None:
         def get_tau(data):
             old_corr_val=1
             tau=None
@@ -161,7 +161,7 @@ def transfer_entropy(x,y,x_divs=None,y_divs=None,symbolic_type='equal-divs',n_sy
                     tau=i
                     break
                 old_corr_val=new_corr_val
-            if tau==None:
+            if tau is None:
                 tau=1
             return tau
         tau=max(get_tau(x),get_tau(y))
