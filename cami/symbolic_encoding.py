@@ -155,7 +155,7 @@ def symbolic_encoding(x,y,x_divs=None,y_divs=None,symbolic_type='equal-divs',n_s
             if Sy[n]==-1:
                 Sy[n]=partlen
         return Sx,Sy
-    if x_divs==None:
+    if x_divs is None:
         if symbolic_type=='equal-divs' or symbolic_type=='equal-points':
             Sx,Sy = getsequence(x,y,xpart,ypart,tslen,n_symbols-1)
         elif symbolic_type=='equal-growth':
