@@ -70,9 +70,15 @@ def symbolic_encoding(x,y,x_divs=None,y_divs=None,symbolic_type='equal-divs',n_s
     if len(x)!=len(y):
         raise ValueError('Error: Length of x and y must be equal!')
     tslen=len(x)
-
-    if x_divs==None and y_divs==None:
-        #generating partitions (checking consistency)
+    
+    #generating partitions (checking consistency)
+    if type(x_divs)==int or type(x_divs)==float:
+        x_divs=[x_divs]
+        xpart,ypart=x_divs,y_divs
+    if type(y_divs)==int or type(y_divs)==float:
+        y_divs=[y_divs]
+        xpart,ypart=x_divs,y_divs
+    if (x_divs is None) and (y_divs is None):
         if symbolic_type=='equal-divs':
             xmin,xmax,ymin,ymax = x.min(),x.max(),y.min(),y.max()
             xpart,ypart=[],[]
@@ -113,16 +119,10 @@ def symbolic_encoding(x,y,x_divs=None,y_divs=None,symbolic_type='equal-divs',n_s
                 ypart.append(ydiff2sort[int(i*(tslen-2)/n_symbols)])
         else:
             raise ValueError('Error: Unacceptable argument of symbolic type. See help on function.')
-    elif (x_divs==None and y_divs!=None) or (x_divs!=None and y_divs==None):
+    elif ((x_divs is None) and (y_divs is not None)) or ((x_divs is not None) and (y_divs is None)):
         raise ValueError("Inconsistent use of partition divisions: x_divs and y_divs must both be None or both be a float, list or tuple of same length")
     elif len(x_divs)!=len(y_divs):
         raise ValueError("x_divs and y_divs must have same length")
-    elif len(x_divs)==1:
-        if type(x_divs)==int or type(x_divs)==float:
-            x_divs=[x_divs]
-        if type(y_divs)==int or type(y_divs)==float:
-            y_divs=[y_divs]
-        xpart,ypart=x_divs,y_divs
     else:
         def convert_to_list(a):
             if type(a)==tuple:
