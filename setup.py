@@ -1,6 +1,6 @@
 from setuptools import setup
 setup(name='cami',
-version='1.402',
+version='1.403',
 description='Causality toolbox for Python',
 url='https://github.com/artvalencio/cami-python',
 author='Arthur Valencio, IC-Unicamp, RIDC NeuroMat',
