@@ -60,3 +60,27 @@ def test_every_complete_word_is_used_with_tau():
     Sy = [0, 1, 0, 1, 1, 0]
     p_xypf = cami.get_prob([0] * 6, Sy, tau=2)[5]
     np.testing.assert_allclose(p_xypf[0], [[1 / 4, 1 / 4], [1 / 4, 1 / 4]])
+
+
+def test_sparse_tables_hold_the_nonzero_cells_of_the_dense_tables(x, y):
+    Sx, Sy = cami.symbolic_encoding(x, y, n_symbols=3)
+    dense = cami.get_prob(Sx, Sy, n_symbols=3, symbolic_length=(2, 1, 2), tau=2)
+    sparse = cami.get_prob(Sx, Sy, n_symbols=3, symbolic_length=(2, 1, 2), tau=2, sparse=True)
+    assert sparse[6:] == dense[6:]
+    for table, cells in zip(dense[:6], sparse[:6]):
+        assert isinstance(cells, dict)
+        nonzero = {tuple(int(i) for i in idx) if table.ndim > 1 else int(idx[0]): table[idx]
+                   for idx in zip(*np.nonzero(table))}
+        assert cells.keys() == nonzero.keys()
+        np.testing.assert_allclose([cells[k] for k in nonzero], list(nonzero.values()), rtol=1e-12)
+
+
+def test_sparse_tables_for_large_alphabets(x, y):
+    import tracemalloc
+    Sx, Sy = cami.symbolic_encoding(x, y, n_symbols=10)
+    tracemalloc.start()
+    p_xypf = cami.get_prob(Sx, Sy, n_symbols=10, symbolic_length=4, sparse=True)[5]  # dense: 10**12 cells
+    peak = tracemalloc.get_traced_memory()[1]
+    tracemalloc.stop()
+    assert sum(p_xypf.values()) == pytest.approx(1)
+    assert peak < 20e6

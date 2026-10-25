@@ -1,4 +1,4 @@
-def get_prob(Sx,Sy,n_symbols=2,symbolic_length=1,tau=1):
+def get_prob(Sx,Sy,n_symbols=2,symbolic_length=1,tau=1,sparse=False):
     ''' Calculates the probabilities of symbolic sequences at each condition  
 
     Parameters
@@ -34,6 +34,12 @@ def get_prob(Sx,Sy,n_symbols=2,symbolic_length=1,tau=1):
                     2 points of y might predict 1 point of the future
                     of y
     
+    sparse: bool, optional
+        If True, every table is returned as a dict mapping the index of
+        each observed cell (an int for 1-D tables, a tuple otherwise) to its
+        probability, instead of a dense array with n_symbols**(lx+lyp+lyf)
+        cells for the joint table. Default: False.
+
     Returns
     -------
     p_xp,p_yp,p_yf: ndarray
@@ -67,6 +73,29 @@ def get_prob(Sx,Sy,n_symbols=2,symbolic_length=1,tau=1):
     n_symbols = _core.as_int(n_symbols, 'n_symbols')
     tau = _core.as_int(tau, 'tau')
     nx, nyp, nyf = n_symbols ** lx, n_symbols ** lyp, n_symbols ** lyf
+    if sparse:
+        start, stop = _core.pair_window(len(Sx), (lx, lyp, lyf), tau)
+        if stop <= start:
+            raise ValueError('Error: time-series too short for the chosen symbolic_length and tau')
+        key = np.multiply(_core.past_window(Sx, lx, tau, n_symbols, start, stop), nyp, dtype=np.int64)
+        key += _core.past_window(Sy, lyp, tau, n_symbols, start, stop)
+        key *= nyf
+        key += _core.future_window(Sy, lyf, tau, n_symbols, start, stop)
+        keys, counts = np.unique(key, return_counts=True)
+        del key
+        total = counts.sum()
+
+        def table(sub_keys, radices):
+            groups, inverse = np.unique(sub_keys, return_inverse=True)
+            probs = np.bincount(inverse, weights=counts) / total
+            if len(radices) == 1:
+                return {int(k): float(p) for k, p in zip(groups, probs)}
+            index = np.unravel_index(groups, radices)
+            return {tuple(int(i) for i in idx): float(p) for idx, p in zip(zip(*index), probs)}
+
+        a, b, c = keys // (nyp * nyf), keys // nyf % nyp, keys % nyf
+        return (table(a, (nx,)), table(b, (nyp,)), table(c, (nyf,)), table(b * nyf + c, (nyp, nyf)),
+                table(a * nyp + b, (nx, nyp)), table(keys, (nx, nyp, nyf)), lx, lyp, lyf)
     #phi is the partition box name of the sequence: e.g.: (|0|..tau..|1|..tau..|0|) => box phi=2
     phi_x = _core.past_codes(Sx, lx, tau, n_symbols)
     phi_yp = _core.past_codes(Sy, lyp, tau, n_symbols)
