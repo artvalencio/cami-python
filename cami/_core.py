@@ -189,6 +189,68 @@ def prepare_pair(x, y, x_divs, y_divs, symbolic_type, n_symbols, tau, delay):
     return x, y, Sx, Sy, n_symbols, tau
 
 
+def clean_multivariate(x):
+    '''Columns are variables. Edge rows with any NaN are trimmed, interior NaNs interpolated.'''
+    if isinstance(x, pd.DataFrame):
+        x = x.to_numpy()
+    x = np.asarray(x, dtype=object)
+    if x.ndim == 1:
+        x = x[:, None]
+    if x.ndim != 2:
+        raise ValueError('Error: x must be 2-D, with rows as time and columns as variables')
+    columns = [to_float_array(col) for col in x.T]
+    valid = np.logical_and.reduce([~np.isnan(col) for col in columns])
+    return np.column_stack(_trim_and_interpolate(valid, *columns))
+
+
+_TAU_AGGREGATES = {None: np.mean, 'average': np.mean, 'mean': np.mean,
+                   'max': np.max, 'maximum': np.max, 'median': np.median, 'med': np.median}
+
+
+def resolve_multivariate_tau(tau, x):
+    if isinstance(tau, str) or tau is None:
+        try:
+            aggregate = _TAU_AGGREGATES[tau]
+        except KeyError:
+            raise ValueError("Error: tau must be an integer, None, 'mean', 'max' or 'median'") from None
+        tau = max(1, int(aggregate([first_zero_autocorrelation(col) for col in x.T])))
+        logger.info('Selected tau=%d by the method of first zero of auto-correlation (%s over variables)',
+                    tau, aggregate.__name__)
+    return as_int(tau, 'tau')
+
+
+def multivariate_words(x, x_divs, symbolic_type, n_symbols, symbolic_length, tau):
+    '''Symbolic words of every variable, one row per time where all words exist.'''
+    x = clean_multivariate(x)
+    n_vars = x.shape[1]
+    if x_divs is None:
+        n_symbols = as_int(n_symbols, 'n_symbols')
+        symbols = [symbolize(col, symbolic_type, n_symbols) for col in x.T]
+    else:
+        if not isinstance(x_divs, (list, tuple, np.ndarray)):
+            raise TypeError('x_divs must be 2D list, 2D tuple or None. Example: x_divs=[[0.3,0.4],[0.1,0.5],[0.3,0.2]]')
+        if len(x_divs) != n_vars:
+            raise ValueError('x_divs must have one list of divisions per variable')
+        divisions = [as_divisions(d) for d in x_divs]
+        if len({len(d) for d in divisions}) != 1:
+            raise ValueError('length of every x_divs column must be equal (same number of divisions for each variable)')
+        symbols = [encode(col, d) for col, d in zip(x.T, divisions)]
+        n_symbols = len(divisions[0]) + 1
+    tau = resolve_multivariate_tau(tau, x)
+    length = as_int(symbolic_length, 'symbolic_length')
+    words = np.column_stack([past_codes(S, length, tau, n_symbols) for S in symbols])
+    words = words[(words >= 0).all(axis=1)]
+    if len(words) == 0:
+        raise ValueError('Error: time-series too short for the chosen symbolic_length and tau')
+    return words
+
+
+def entropy_of_rows(rows, log):
+    '''Plug-in entropy of the joint distribution of the rows (sparse: only observed rows).'''
+    __, counts = np.unique(rows, axis=0, return_counts=True)
+    return entropy_from_probs(counts / counts.sum(), log)
+
+
 def past_codes(S, length, tau, n_symbols):
     '''Index of the symbolic word formed by the `length` tau-spaced symbols before n.
 
