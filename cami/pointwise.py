@@ -19,15 +19,15 @@ def pointwise(x,y,method='normalized',x_divs=None,y_divs=None,symbolic_type='equ
                 perfom any normalization procedure
     x_divs: float,list,tuple, np.array, pd.Series, None, optional
         Partition divisions for the x variable. Select None for placing
-        the divisions according to one of the symbolic-type options.
+        the divisions according to one of the symbolic_type options.
         Must have same length as y_divs.
         Default: None.
     y_divs: float,list,tuple, np.array, pd.Series, None, optional
         Partition divisions for the y variable. Select None for placing
-        the divisions according to one of the symbolic-type options.
+        the divisions according to one of the symbolic_type options.
         Must have same length as x_divs.
         Default: None. 
-    symbolic-type: str, optional
+    symbolic_type: str, optional
         Type of symbolic encoding. Options:
             - 'equal-divs': equal-sized divisions are
                 applied across the range of x and y, i.e.
@@ -51,40 +51,40 @@ def pointwise(x,y,method='normalized',x_divs=None,y_divs=None,symbolic_type='equ
     n_symbols: int, optional
         Number of symbolic symbols, or marginal partition
         resolution. If n_symbols=2, the partition is
-        binary (0,1) (default). Is n_symbols=3, it is ternary
+        binary (0,1) (default). If n_symbols=3, it is ternary
         (0,1,2), and so on.
     symbolic_length: int, list (2-3 elements), tuple (2-3 elements), optional
         The symbolic length of the encoding, i.e., how many
         data points are used to build one symbol. Options:
             - int: same number of points in x, y and future-y points
-                e.g.: symbolic-length=2 means 2 points of x and
+                e.g.: symbolic_length=2 means 2 points of x and
                     2 points of y might predict 2 points of the
-                    future of y. (default: symbolic-length=1)
+                    future of y. (default: symbolic_length=1)
             - list or tuple (2 elements): the first element is the
                 number of points of x and the second the number of
                 points of y and future-y points to build the symbolic
                 sequences.
-                e.g.: symbolic-length=(3,2) means 3 points of x and
+                e.g.: symbolic_length=(3,2) means 3 points of x and
                     2 points of y might predict 2 points of the future
                     of y
             - list or tuple (3 elements): the first element is the
                 number of points of x, the second the number of
                 points of y and the third the number of points of
                 the future of y to build the symbolic sequences.
-                e.g.: symbolic-length=(3,2,1) means 3 points of x and
+                e.g.: symbolic_length=(3,2,1) means 3 points of x and
                     2 points of y might predict 1 point of the future
                     of y
     tau: int, None, optional
         Time-delay of reconstruction via method of embedding (Takens'), in number
-        of steps. default=None (first zero correlation crossing).
+        of steps. If None, tau is the first zero crossing of the auto-correlation.
     delay: int, optional
         Time-delay to be considered between cause and effect, in number of steps.
         Default: zero
     units: str, optional
         Units to be used (base of the logarithm). Options:
-            - 'bit' or 'bits': log2 is adopted (default)
-            - 'nat' or 'nats': ln is adopted
-            - 'ban' or 'bans': log10 is adopted
+            - 'bits' (or 'bit'): log2 is adopted (default)
+            - 'nat' (or 'nats'): ln is adopted
+            - 'ban' (or 'bans'): log10 is adopted
     two_sided: bool, optional
         Whether to calculate in the directions X->Y and Y->X or only on X->Y.
         Default: False (only X->Y)
@@ -97,11 +97,11 @@ def pointwise(x,y,method='normalized',x_divs=None,y_divs=None,symbolic_type='equ
     dpi: int, None, optional
         Plot resolution (dots per inch). Default: None (matplotlib standard)
     labelsize: int, None, optional
-        Font size for plot labels. Default: None (matplolib standard)
+        Font size for plot labels. Default: None (matplotlib standard)
     ticksize: int, None, optional
-        Font size for plot tick values. Default: None (matplolib standard)
-    ticksize: int, None, optional
-        Font size for subplot titles. Default: None (matplolib standard)
+        Font size for plot tick values. Default: None (matplotlib standard)
+    titlesize: int, None, optional
+        Font size for subplot titles. Default: None (matplotlib standard)
     dtype: numpy float type, optional
         Type of the returned series, e.g. np.float32 to halve their memory.
         Default: None (float64).
@@ -139,7 +139,7 @@ def pointwise(x,y,method='normalized',x_divs=None,y_divs=None,symbolic_type='equ
         measures from many individual short time-series
         of the same phenomena instead of using a single
         long time-series
-    tranfer_entropy_rate: calculates the Transfer Entropy
+    transfer_entropy_rate: calculates the Transfer Entropy
         Rate with respect to the symbolic length
     directionality: calculates the net flow of causal
         information between variables X and Y

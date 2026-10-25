@@ -20,7 +20,7 @@ def multithread_causality(x,y,x_divs=None,y_divs=None,symbolic_type='equal-divs'
         The trials of the second variable, matching x trial by trial.
     x_divs: float,list,tuple, np.array, pd.Series, None, optional
         Partition divisions for the x variable. Select None for placing
-        the divisions according to one of the symbolic-type options.
+        the divisions according to one of the symbolic_type options.
         Must have same length as y_divs. Default: None.
     y_divs: float,list,tuple, np.array, pd.Series, None, optional
         Partition divisions for the y variable. Default: None.

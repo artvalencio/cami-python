@@ -10,9 +10,9 @@ def entropy(x,x_divs=None,symbolic_type='equal-divs',n_symbols=2,symbolic_length
         The time-series
     x_divs: float,list,tuple, np.array, pd.Series, None, optional
         Partition divisions for the x variable. Select None for placing
-        the divisions according to one of the symbolic-type options.
+        the divisions according to one of the symbolic_type options.
         Default: None.
-    symbolic-type: str, optional
+    symbolic_type: str, optional
         Type of binning or symbolic encoding. Options:
             - 'equal-divs': equal-sized divisions are
                 applied across the range of x and y, i.e.
@@ -36,7 +36,7 @@ def entropy(x,x_divs=None,symbolic_type='equal-divs',n_symbols=2,symbolic_length
     n_symbols: int, optional
         Number of symbolic symbols, or partition resolution.
         If n_symbols=2, the partition is binary (0,1) (default).
-        Is n_symbols=3, it is ternary (0,1,2), and so on.
+        If n_symbols=3, it is ternary (0,1,2), and so on.
     symbolic_length: int, optional
         The symbolic length of the encoding, i.e., how many
         data points are used to build one symbol. Symbolic
@@ -44,19 +44,25 @@ def entropy(x,x_divs=None,symbolic_type='equal-divs',n_symbols=2,symbolic_length
         values greater than 1 mean that more than one data point
         is required to produce an unit of meaningful information.
     tau: int, None, optional
-        Time-delay of reconstruction va method of embedding (Takens'), in number
-        of steps. If None, calculates tau as the first zero of auto-correlation.
+        Time-delay of reconstruction via the method of embedding (Takens'), in number
+        of steps. If None, tau is the first zero crossing of the auto-correlation
+        (the selected value is logged to the 'cami' logger).
     units: str, optional
         Units to be used (base of the logarithm). Options:
-            - 'bits': log2 is adopted (default)
-            - 'nat': ln is adopted
-            - 'ban': log10 is adopted
+            - 'bits' (or 'bit'): log2 is adopted (default)
+            - 'nat' (or 'nats'): ln is adopted
+            - 'ban' (or 'bans'): log10 is adopted
     
     Returns
     -------
     H: float
         The value of the Shannon Entropy of this variable encoded
         by the chosen parameters.
+
+    Notes
+    -----
+    H = -sum_w p(w) log p(w) over the symbolic words w of length
+    symbolic_length (plug-in probabilities). Constant series have H = 0.
 
     See Also
     --------
@@ -71,12 +77,12 @@ def entropy(x,x_divs=None,symbolic_type='equal-divs',n_symbols=2,symbolic_length
         measures from many individual short time-series
         of the same phenomena instead of using a single
         long time-series
-    mi_rate: calculates the Mutual Information Rate
+    mutual_info_rate: calculates the Mutual Information Rate
         with respect to the symbolic length
     pointwise: calculates the pointwise contributions to
         the information measurements
-    total_correlation: calculates the ammount of mutual
-        of a set of variables
+    total_correlation: calculates the total correlation
+        (multi-information) of a set of variables
 
     Example
     -------

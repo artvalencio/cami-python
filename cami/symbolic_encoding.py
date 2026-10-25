@@ -10,15 +10,15 @@ def symbolic_encoding(x,y,x_divs=None,y_divs=None,symbolic_type='equal-divs',n_s
         The second time-series  
     x_divs: float,list,tuple, np.array, pd.Series, None, optional
             Partition divisions for the x variable. Select None for placing
-            the divisions according to one of the symbolic-type options.
+            the divisions according to one of the symbolic_type options.
             Must have same length as y_divs.
             Default: None.
     y_divs: float,list,tuple, np.array, pd.Series, None, optional
             Partition divisions for the y variable. Select None for placing
-            the divisions according to one of the symbolic-type options.
+            the divisions according to one of the symbolic_type options.
             Must have same length as x_div.
             Default: None. 
-    symbolic-type: str, optional
+    symbolic_type: str, optional
         Type of symbolic encoding. Options:
             - 'equal-divs': equal-sized divisions are
                 applied across the range of x and y, i.e.
@@ -42,7 +42,7 @@ def symbolic_encoding(x,y,x_divs=None,y_divs=None,symbolic_type='equal-divs',n_s
     n_symbols: int, optional
         Number of symbolic symbols, or marginal partition
         resolution. If n_symbols=2, the partition is
-        binary (0,1) (default). Is n_symbols=3, it is ternary
+        binary (0,1) (default). If n_symbols=3, it is ternary
         (0,1,2), and so on.
     Returns
     -------

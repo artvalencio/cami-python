@@ -11,15 +11,15 @@ def transfer_entropy(x,y,x_divs=None,y_divs=None,symbolic_type='equal-divs',n_sy
         The second time-series
     x_divs: float,list,tuple, np.array, pd.Series, None, optional
         Partition divisions for the x variable. Select None for placing
-        the divisions according to one of the symbolic-type options.
+        the divisions according to one of the symbolic_type options.
         Must have same length as y_divs.
         Default: None.
     y_divs: float,list,tuple, np.array, pd.Series, None, optional
         Partition divisions for the y variable. Select None for placing
-        the divisions according to one of the symbolic-type options.
+        the divisions according to one of the symbolic_type options.
         Must have same length as x_divs.
         Default: None.    
-    symbolic-type: str, optional
+    symbolic_type: str, optional
         Type of symbolic encoding. Options:
             - 'equal-divs': equal-sized divisions are
                 applied across the range of x and y, i.e.
@@ -43,40 +43,41 @@ def transfer_entropy(x,y,x_divs=None,y_divs=None,symbolic_type='equal-divs',n_sy
     n_symbols: int, optional
         Number of symbolic symbols, or marginal partition
         resolution. If n_symbols=2, the partition is
-        binary (0,1) (default). Is n_symbols=3, it is ternary
+        binary (0,1) (default). If n_symbols=3, it is ternary
         (0,1,2), and so on.
     symbolic_length: int, list (2-3 elements), tuple (2-3 elements), optional
         The symbolic length of the encoding, i.e., how many
         data points are used to build one symbol. Options:
             - int: same number of points in x, y and future-y points
-                e.g.: symbolic-length=2 means 2 points of x and
+                e.g.: symbolic_length=2 means 2 points of x and
                     2 points of y might predict 2 points of the
-                    future of y. (default: symbolic-length=1)
+                    future of y. (default: symbolic_length=1)
             - list or tuple (2 elements): the first element is the
                 number of points of x and the second the number of
                 points of y and future-y points to build the symbolic
                 sequences.
-                e.g.: symbolic-length=(3,2) means 3 points of x and
+                e.g.: symbolic_length=(3,2) means 3 points of x and
                     2 points of y might predict 2 points of the future
                     of y
             - list or tuple (3 elements): the first element is the
                 number of points of x, the second the number of
                 points of y and the third the number of points of
                 the future of y to build the symbolic sequences.
-                e.g.: symbolic-length=(3,2,1) means 3 points of x and
+                e.g.: symbolic_length=(3,2,1) means 3 points of x and
                     2 points of y might predict 1 point of the future
                     of y
     tau: int, None, optional
-        Time-delay of reconstruction va method of embedding (Takens'), in number
-        of steps. If None, calculates tau as the first zero of auto-correlation.
+        Time-delay of reconstruction via the method of embedding (Takens'), in number
+        of steps. If None, tau is the first zero crossing of the auto-correlation
+        (the selected value is logged to the 'cami' logger).
     delay: int, optional
         Time-delay to be considered between cause and effect, in number of steps.
         Default: zero
     units: str, optional
         Units to be used (base of the logarithm). Options:
-            - 'bits': log2 is adopted (default)
-            - 'nat': ln is adopted
-            - 'ban': log10 is adopted
+            - 'bits' (or 'bit'): log2 is adopted (default)
+            - 'nat' (or 'nats'): ln is adopted
+            - 'ban' (or 'bans'): log10 is adopted
     two_sided: bool, optional
         Whether to calculate TE X->Y and TE Y->X. Default: False (only X->Y)
     
@@ -89,6 +90,14 @@ def transfer_entropy(x,y,x_divs=None,y_divs=None,symbolic_type='equal-divs',n_sy
         The value of the Transfer Entropy
         in the direction of Y->X 
 
+    Notes
+    -----
+    TE(X->Y) = CaMI(X->Y) - MI(X_past ; Y_past)
+             = H(X_past, Y_past) + H(Y_past, Y_future) - H(Y_past) - H(X_past, Y_past, Y_future),
+    the information the past of X adds about the future of Y beyond what the
+    past of Y already gives. For Y->X the roles (and symbolic lengths) of X
+    and Y are swapped.
+
     See Also
     --------
     mutual_info: calculates the Mutual Information from
@@ -99,7 +108,7 @@ def transfer_entropy(x,y,x_divs=None,y_divs=None,symbolic_type='equal-divs',n_sy
         measures from many individual short time-series
         of the same phenomena instead of using a single
         long time-series
-    tranfer_entropy_rate: calculates the Transfer Entropy
+    transfer_entropy_rate: calculates the Transfer Entropy
         Rate with respect to the symbolic length
     directionality: calculates the net flow of causal
         information between variables X and Y

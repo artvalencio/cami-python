@@ -11,15 +11,15 @@ def transfer_entropy_rate(x,y,x_divs=None,y_divs=None,symbolic_type='equal-divs'
         The second time-series
     x_divs: float,list,tuple, np.array, pd.Series, None, optional
         Partition divisions for the x variable. Select None for placing
-        the divisions according to one of the symbolic-type options.
+        the divisions according to one of the symbolic_type options.
         Must have same length as y_divs.
         Default: None.
     y_divs: float,list,tuple, np.array, pd.Series, None, optional
         Partition divisions for the y variable. Select None for placing
-        the divisions according to one of the symbolic-type options.
+        the divisions according to one of the symbolic_type options.
         Must have same length as x_divs.
         Default: None. 
-    symbolic-type: str, optional
+    symbolic_type: str, optional
         Type of symbolic encoding. Options:
             - 'equal-divs': equal-sized divisions are
                 applied across the range of x and y, i.e.
@@ -56,9 +56,9 @@ def transfer_entropy_rate(x,y,x_divs=None,y_divs=None,symbolic_type='equal-divs'
         Default: zero
     units: str, optional
         Units to be used (base of the logarithm). Options:
-            - 'bit' or 'bits': log2 is adopted (default)
-            - 'nat' or 'nats': ln is adopted
-            - 'ban' or 'bans': log10 is adopted
+            - 'bits' (or 'bit'): log2 is adopted (default)
+            - 'nat' (or 'nats'): ln is adopted
+            - 'ban' (or 'bans'): log10 is adopted
     make_plot: bool, optional
         Whether to plot TE x L graph. Default: False.
     verbose: bool, optional
@@ -81,12 +81,12 @@ def transfer_entropy_rate(x,y,x_divs=None,y_divs=None,symbolic_type='equal-divs'
         measures from many individual short time-series
         of the same phenomena instead of using a single
         long time-series
-    mi_rate: calculates the Mutual Information Rate
+    mutual_info_rate: calculates the Mutual Information Rate
         with respect to the symbolic length
     pointwise: calculates the pointwise contributions to
         the information measurements
-    total_correlation: calculates the ammount of mutual
-        of a set of variables
+    total_correlation: calculates the total correlation
+        (multi-information) of a set of variables
 
     Examples
     -------

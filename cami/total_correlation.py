@@ -14,9 +14,9 @@ def total_correlation(x,x_divs=None,symbolic_type='equal-divs',n_symbols=2,symbo
         [a0,b0,c0] are the divisions for the first variable (x[:,0]),
         [a1,b1,c1] are the divisions for the second variable (x[:,1]) and so on.
         Select None for automatically placing the divisions of each variable
-        according to one of the symbolic-type options.
+        according to one of the symbolic_type options.
         Default: None.
-    symbolic-type: str, optional
+    symbolic_type: str, optional
         Type of binning or symbolic encoding. Options:
             - 'equal-divs': equal-sized divisions are
                 applied across the range of x and y, i.e.
@@ -40,7 +40,7 @@ def total_correlation(x,x_divs=None,symbolic_type='equal-divs',n_symbols=2,symbo
     n_symbols: int, optional
         Number of symbolic symbols, or partition resolution.
         If n_symbols=2, the partition is binary (0,1) (default).
-        Is n_symbols=3, it is ternary (0,1,2), and so on.
+        If n_symbols=3, it is ternary (0,1,2), and so on.
     symbolic_length: int, optional
         The symbolic length of the encoding, i.e., how many
         data points represent one unit of information.
@@ -50,15 +50,20 @@ def total_correlation(x,x_divs=None,symbolic_type='equal-divs',n_symbols=2,symbo
         first zero of auto-correlation; 'max' and 'median' aggregate likewise.
     units: str, optional
         Units to be used (base of the logarithm). Options:
-            - 'bits': log2 is adopted (default)
-            - 'nat': ln is adopted
-            - 'ban': log10 is adopted
+            - 'bits' (or 'bit'): log2 is adopted (default)
+            - 'nat' (or 'nats'): ln is adopted
+            - 'ban' (or 'bans'): log10 is adopted
     
     Returns
     -------
     TC: float
         The value of the Total Correlation, sum_i H(X_i) - H(X_1,...,X_n),
         of these variables encoded by the chosen parameters.
+
+    Notes
+    -----
+    Each variable is encoded with its own partition; TC is 0 for independent
+    variables and grows with redundancy (two identical variables: TC = H).
 
     See Also
     --------
@@ -73,12 +78,12 @@ def total_correlation(x,x_divs=None,symbolic_type='equal-divs',n_symbols=2,symbo
         measures from many individual short time-series
         of the same phenomena instead of using a single
         long time-series
-    mi_rate: calculates the Mutual Information Rate
+    mutual_info_rate: calculates the Mutual Information Rate
         with respect to the symbolic length
     pointwise: calculates the pointwise contributions to
         the information measurements
-    total_correlation: calculates the ammount of mutual
-        of a set of variables
+    total_correlation: calculates the total correlation
+        (multi-information) of a set of variables
 
     Example
     -------

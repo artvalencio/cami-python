@@ -1,8 +1,29 @@
-'''Shared building blocks for the CaMI estimators.
+'''Shared building blocks for the CaMI estimators (private API).
 
-Everything here is private API: input cleaning, symbolic encoding helpers,
-symbolic-word indexing and the plug-in estimators computed from
-probability tables.
+Every estimator follows the same pipeline:
+
+1. Cleaning: series are converted to float, edge NaNs are trimmed and
+   interior NaNs linearly interpolated (clean_pair), then x[n] is paired
+   with y[n+delay] (apply_delay).
+2. Symbolic encoding: each value (or its 1st/2nd difference) is replaced by
+   the index of the partition cell it falls in (symbolize/encode). Symbols
+   are small integers stored as uint8.
+3. Symbolic words: a word is a sequence of tau-spaced symbols, stored as one
+   integer (base n_symbols). At time n the past word of length L uses
+   S[n-tau*L], ..., S[n-tau] and the future word S[n], ..., S[n+tau*(L-1)]
+   (past_window/future_window). Only the times where every word needed is
+   complete are used (pair_window).
+4. Counting: the joint word (past x, past y, future y) is combined into one
+   integer key (mixed radix) and counted, densely with np.bincount when the
+   alphabet is small, or sparsely (np.unique over the observed keys) when it
+   is large (counting_method).
+5. Entropies: every marginal count is derived from that single joint count,
+   giving the plug-in entropies H(a), H(b), H(a,b), H(b,c), H(a,b,c)
+   (pair_entropies), from which
+       CaMI = H(a) + H(b,c) - H(a,b,c),  MI = H(a) + H(b) - H(a,b),  TE = CaMI - MI.
+
+Prepared bundles steps 1-3 so that several measures (both directions, rates,
+surrogates) reuse the same encoding and word codes.
 '''
 import logging
 import warnings
@@ -58,7 +79,11 @@ def _interpolate_nans(data):
 
 
 def _trim_and_interpolate(bad, *series):
-    '''Trims the edge samples where bad is True and interpolates interior NaNs.'''
+    '''Trims the edge samples where bad is True and interpolates interior NaNs.
+
+    Edge NaNs cannot be interpolated (no value on one side), so they are dropped;
+    interior gaps are filled linearly so that the time spacing stays regular.
+    '''
     if len(bad) == 0 or bad.all():
         raise ValueError('Error: time-series contains no numeric values')
     first, last = int(bad.argmin()), len(bad) - int(bad[::-1].argmin())  # no index array
@@ -154,6 +179,9 @@ def transform(data, symbolic_type, axis=-1):
 
 
 def place_divisions(data, placement, n_symbols):
+    '''Division points for n_symbols cells: equal-width cells over [min, max]
+    ('width'), or quantiles so that each cell holds the same number of points
+    ('points').'''
     if placement == 'width':
         lo, hi = data.min(), data.max()
         return [lo + i * (hi - lo) / n_symbols for i in range(1, n_symbols)]
@@ -206,6 +234,11 @@ def first_zero_autocorrelation(data, direct_lags=8):
         old_corr_val = new_corr_val
     if n <= direct_lags + 1:
         return 1
+    # For lag i the two segments are a = d[:n-i] and b = d[i:], of length m = n-i:
+    #   corr = (sum a*b - sum a * sum b / m) / sqrt(var_a * var_b),
+    #   var_a = sum a^2 - (sum a)^2 / m   (same for b).
+    # sum a*b for every lag is one FFT autocorrelation; the segment sums and sums
+    # of squares are differences of cumulative sums.
     d = data - data.mean()  # correlations are shift-invariant; centring improves precision
     lags = np.arange(direct_lags + 1, n)
     m = (n - lags).astype(float)
@@ -337,6 +370,7 @@ def entropy_of_rows(columns, log, size):
 
 
 def code_dtype(size):
+    '''Smallest integer type able to hold word codes in [0, size).'''
     if size >= 2 ** 63:
         raise ValueError('Error: n_symbols**symbolic_length is too large (more than 2**63 words)')
     return np.int32 if size < 2 ** 31 else np.int64
@@ -347,6 +381,8 @@ def past_window(S, length, tau, n_symbols, start, stop):
 
     S may be 2-D (time along axis 0, one column per trial).
     '''
+    # code = S[n-tau*L] + S[n-tau*(L-1)]*ns + ... + S[n-tau]*ns^(L-1), built with
+    # Horner's rule over whole slices (one vectorized pass per symbol of the word)
     codes = np.zeros((stop - start,) + S.shape[1:], dtype=code_dtype(n_symbols ** length))
     for k in range(length - 1, -1, -1):  # Horner: oldest symbol is the least significant digit
         first = start - tau * length + k * tau
@@ -367,6 +403,7 @@ def future_window(S, length, tau, n_symbols, start, stop):
 def pair_window(n, lengths, tau):
     '''Times [start, stop) where the past of x, past of y and future of y all exist.'''
     lx, lyp, lyf = lengths
+    # the past words need tau*l earlier samples; the future word reaches tau*(lyf-1) ahead
     return tau * max(lx, lyp), n - tau * (lyf - 1)
 
 
@@ -434,7 +471,13 @@ def pair_words(Sx, Sy, lengths, tau, n_symbols, allow_empty=False):
 
 def counting_method(size, n_samples):
     ''''dense' (np.bincount over the whole alphabet) when the alphabet is small enough,
-    'sparse' (sort-based np.unique over the observed keys) otherwise.'''
+    'sparse' (sort-based np.unique over the observed keys) otherwise.
+
+    Dense counting is O(N + size) and much faster, but its table has `size` cells;
+    it is used only when the table is at most about twice as large as the data
+    (or small in absolute terms), so it never dominates memory. Both methods give
+    the same counts in the same (increasing key) order.
+    '''
     return 'dense' if size <= max(2 * n_samples, 2 ** 20) and size < 2 ** 31 else 'sparse'
 
 
@@ -453,12 +496,13 @@ def entropy_of_codes(log, *words, method=None):
     for __, n in words:
         size *= n
     if size < 2 ** 62:
+        # mixed-radix key: (((c1 * n2) + c2) * n3 + c3) ... identifies the combination
         key = np.array(words[0][0], dtype=np.int64)
         for codes, n in words[1:]:
             key *= n
             key += codes
         counts = count_keys(key, size, method)
-    else:
+    else:  # key would overflow int64: count the rows themselves
         __, counts = np.unique(np.column_stack([codes for codes, __ in words]), axis=0, return_counts=True)
     return entropy_from_probs(counts / counts.sum(), log)
 
@@ -521,6 +565,7 @@ def pointwise_values(a, b, c, log, normalized, out):
             entropies = pair_entropies(a, b, c, log, method='sparse')
             keys, inverse, n_abc = np.unique(key, return_inverse=True, return_counts=True)
             del key
+            # decode the marginal sub-keys of each occupied cell from key = (a*nb + b)*nc + c
             ab_keys, bc_keys = keys // nc, keys % (nb * nc)
             a_keys, b_keys = ab_keys // nb, bc_keys // nc
 
@@ -551,6 +596,7 @@ def _entropy_of_counts(counts, log):
 
 def entropies_from_table(table, log):
     '''pair_entropies from a dense (na, nb, nc) table of joint counts.'''
+    # marginal counts are sums over the other axes; ravel() keeps increasing key order
     ab = table.sum(axis=2)
     return {'a': _entropy_of_counts(ab.sum(axis=1), log), 'b': _entropy_of_counts(ab.sum(axis=0), log),
             'ab': _entropy_of_counts(ab.ravel(), log), 'bc': _entropy_of_counts(table.sum(axis=0).ravel(), log),
@@ -597,6 +643,8 @@ def entropies_from_keys(keys, counts, nb, nc, log):
         c = c[c > 0]
         return entropy_from_probs(c / c.sum(), log)
 
+    # keys are sorted, so (a, b) and a sub-keys are sorted too and can be summed by
+    # runs; the (b, c) and b sub-keys are not and are grouped with np.unique
     ab_keys = keys // nc
     bc_keys = keys % (nb * nc)
     return {'a': entropy(_group_counts(ab_keys // nb, counts, True)),
@@ -618,6 +666,8 @@ def chunked_pair_entropies(Sa, Sb, lengths, tau, n_symbols, log, start, stop):
     size = na * nb * nc
     method = counting_method(size, stop - start)
     table, parts = (np.zeros(size, dtype=np.int64), None) if method == 'dense' else (None, [])
+    # word codes only depend on symbols, so each chunk of times can be coded and
+    # counted on its own; counts add up across chunks
     for first in range(start, stop, CHUNK_SIZE):
         last = min(first + CHUNK_SIZE, stop)
         key = np.multiply(past_window(Sa, lx, tau, n_symbols, first, last), nb, dtype=np.int64)
@@ -631,6 +681,7 @@ def chunked_pair_entropies(Sa, Sb, lengths, tau, n_symbols, log, start, stop):
         del key
     if method == 'dense':
         return entropies_from_table(table.reshape(na, nb, nc), log)
+    # merge the per-chunk sorted keys, adding the counts of keys seen in several chunks
     keys, inverse = np.unique(np.concatenate([k for k, __ in parts]), return_inverse=True)
     counts = np.bincount(inverse, weights=np.concatenate([c for __, c in parts]))
     return entropies_from_keys(keys, counts, nb, nc, log)
@@ -638,8 +689,9 @@ def chunked_pair_entropies(Sa, Sb, lengths, tau, n_symbols, log, start, stop):
 
 def measures_from_entropies(h):
     '''(CaMI, mutual information, transfer entropy) from pair_entropies output.'''
-    cami = h['a'] + h['bc'] - h['abc']
-    mutual_info = h['a'] + h['b'] - h['ab']
+    # a = past of the cause, b = past of the effect, c = future of the effect
+    cami = h['a'] + h['bc'] - h['abc']      # I(a ; b, c)
+    mutual_info = h['a'] + h['b'] - h['ab']  # I(a ; b)
     return cami, mutual_info, cami - mutual_info
 
 
@@ -675,6 +727,8 @@ class Prepared:
             if start >= n:
                 codes = np.zeros(0, dtype=np.int32)
             elif cached is not None and cached[0] == length - 1:
+                # one more (older) symbol becomes the least significant digit:
+                # code_L(n) = S[n - tau*L] + ns * code_{L-1}(n)
                 codes = cached[1][tau:].astype(code_dtype(ns ** length))
                 codes *= ns
                 codes += S[:n - start]
@@ -685,6 +739,8 @@ class Prepared:
             if stop <= 0:
                 codes = np.zeros(0, dtype=np.int32)
             elif cached is not None and cached[0] == length - 1:
+                # one more (later) symbol becomes the most significant digit:
+                # code_L(n) = code_{L-1}(n) + S[n + tau*(L-1)] * ns^(L-1)
                 codes = cached[1][:stop].astype(code_dtype(ns ** length))
                 codes += S[tau * (length - 1):].astype(codes.dtype) * codes.dtype.type(ns ** (length - 1))
             else:
@@ -708,6 +764,7 @@ class Prepared:
         if stop <= start:
             raise ValueError('Error: time-series too short for the chosen symbolic_length and tau')
         tau, ns = self.tau, self.n_symbols
+        # cached past codes of length l start at time tau*l: shift to the common window
         return ((self.past(cause, lx)[start - tau * lx:stop - tau * lx], ns ** lx),
                 (self.past(effect, lyp)[start - tau * lyp:stop - tau * lyp], ns ** lyp),
                 (self.future(effect, lyf)[start:stop], ns ** lyf))
@@ -719,7 +776,7 @@ class Prepared:
         size = 1
         for length in lengths:
             size *= self.n_symbols ** length
-        if self.n > CHUNK_SIZE and size < 2 ** 62:
+        if self.n > CHUNK_SIZE and size < 2 ** 62:  # long series: bounded memory
             if stop <= start:
                 raise ValueError('Error: time-series too short for the chosen symbolic_length and tau')
             cause, effect = ('x', 'y') if direction == 'xy' else ('y', 'x')
@@ -741,6 +798,7 @@ def linear_rate(values):
     Returns (slope, idx) where the window covers L = idx+1 .. idx+3.
     '''
     from scipy.stats import linregress
+    # the most linear stretch is where the second difference is smallest in size
     diff2 = np.diff(values, 2)
     a = min(abs(diff2))
     find_a = np.where(diff2 == a)[0]

@@ -10,27 +10,27 @@ def get_prob(Sx,Sy,n_symbols=2,symbolic_length=1,tau=1,sparse=False):
     n_symbols: int, optional
         Number of symbolic symbols, or marginal partition
         resolution. If n_symbols=2, the partition is
-        binary (0,1) (default). Is n_symbols=3, it is ternary
+        binary (0,1) (default). If n_symbols=3, it is ternary
         (0,1,2), and so on.
     symbolic_length: int, list (2-3 elements), tuple (2-3 elements), optional
         The symbolic length of the encoding, i.e., how many
         data points are used to build one symbol. Options:
             - int: same number of points in x, y and future-y points
-                e.g.: symbolic-length=2 means 2 points of x and
+                e.g.: symbolic_length=2 means 2 points of x and
                     2 points of y might predict 2 points of the
-                    future of y. (default: symbolic-length=1)
+                    future of y. (default: symbolic_length=1)
             - list or tuple (2 elements): the first element is the
                 number of points of x and the second the number of
                 points of y and future-y points to build the symbolic
                 sequences.
-                e.g.: symbolic-length=(3,2) means 3 points of x and
+                e.g.: symbolic_length=(3,2) means 3 points of x and
                     2 points of y might predict 2 points of the future
                     of y
             - list or tuple (3 elements): the first element is the
                 number of points of x, the second the number of
                 points of y and the third the number of points of
                 the future of y to build the symbolic sequences.
-                e.g.: symbolic-length=(3,2,1) means 3 points of x and
+                e.g.: symbolic_length=(3,2,1) means 3 points of x and
                     2 points of y might predict 1 point of the future
                     of y
     
@@ -52,8 +52,6 @@ def get_prob(Sx,Sy,n_symbols=2,symbolic_length=1,tau=1,sparse=False):
     See Also
     -------
     symbolic_encoding: generates a symbolic encoding from the time-series.
-    state_space: reconstructs the state_space of the variables from the
-        time-series data
     cami: calculates the Causal Mutual Information from time-series data 
 
     Example
