@@ -36,8 +36,8 @@ cami.measures(x, y, n_symbols=4, symbolic_length=2)   # all of the above in one 
 # is the measure above chance? (surrogate data)
 cami.surrogate_test(x, y, measure='transfer_entropy', n_surrogates=99, seed=0)
 
-# many short experiments of the same phenomenon (columns are trials)
-cami.multithread_causality(x.reshape(100, 50), y.reshape(100, 50), symbolic_length=2)
+# many short experiments of the same phenomenon: 50 trials of 100 points (columns)
+cami.multithread_causality(x.reshape(50, 100).T, y.reshape(50, 100).T, symbolic_length=2)
 ```
 
 Messages such as the automatically selected `tau` go to the `cami` logger;
