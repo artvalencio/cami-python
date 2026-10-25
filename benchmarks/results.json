@@ -1,4 +1,22 @@
 {
+ "A1": {
+  "cami L=1 ns=2": {
+   "peak_mb": 81.0,
+   "time_ms": 157.61
+  },
+  "cami L=3 ns=10": {
+   "peak_mb": 96.71,
+   "time_ms": 359.53
+  },
+  "cami two_sided L=3 ns=4": {
+   "peak_mb": 81.0,
+   "time_ms": 358.39
+  },
+  "cami_rate L_limit=6": {
+   "peak_mb": 97.0,
+   "time_ms": 1054.24
+  }
+ },
  "baseline": {
   "auto tau slow sine (N=2e4)": {
    "peak_mb": 1.6,

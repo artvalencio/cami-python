@@ -29,5 +29,6 @@ packages = ["cami"]
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
-markers = ["slow: performance tests"]
+markers = ["slow: performance and budget tests (run with -m slow)"]
+addopts = "-m 'not slow'"
 filterwarnings = ["ignore:Matplotlib is currently using agg:UserWarning"]

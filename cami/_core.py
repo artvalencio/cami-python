@@ -347,8 +347,23 @@ def pair_words(Sx, Sy, lengths, tau, n_symbols, allow_empty=False):
     return (a[valid], n_symbols ** lx), (b[valid], n_symbols ** lyp), (c[valid], n_symbols ** lyf)
 
 
-def entropy_of_codes(log, *words):
-    '''Plug-in joint entropy of (codes, alphabet size) pairs, counting only observed combinations.'''
+def counting_method(size, n_samples):
+    ''''dense' (np.bincount over the whole alphabet) when the alphabet is small enough,
+    'sparse' (sort-based np.unique over the observed keys) otherwise.'''
+    return 'dense' if size <= max(2 * n_samples, 2 ** 20) and size < 2 ** 31 else 'sparse'
+
+
+def count_keys(key, size, method=None):
+    '''Counts of every observed key, in increasing key order (zeros dropped).'''
+    method = method or counting_method(size, len(key))
+    if method == 'dense':
+        counts = np.bincount(key, minlength=size)
+        return counts[counts > 0]
+    return np.unique(key, return_counts=True)[1]
+
+
+def entropy_of_codes(log, *words, method=None):
+    '''Plug-in joint entropy of (codes, alphabet size) pairs.'''
     size = 1
     for __, n in words:
         size *= n
@@ -356,7 +371,7 @@ def entropy_of_codes(log, *words):
         key = np.zeros(len(words[0][0]), dtype=np.int64)
         for codes, n in words:
             key = key * n + codes
-        __, counts = np.unique(key, return_counts=True)
+        counts = count_keys(key, size, method)
     else:
         __, counts = np.unique(np.column_stack([codes for codes, __ in words]), axis=0, return_counts=True)
     return entropy_from_probs(counts / counts.sum(), log)
