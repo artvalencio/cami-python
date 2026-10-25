@@ -11,15 +11,15 @@ def transfer_entropy_rate(x,y,x_divs=None,y_divs=None,symbolic_type='equal-divs'
         The second time-series
     x_divs: float,list,tuple, np.array, pd.Series, None, optional
         Partition divisions for the x variable. Select None for placing
-        the divisions according to one of the symbolic-type options.
+        the divisions according to one of the symbolic_type options.
         Must have same length as y_divs.
         Default: None.
     y_divs: float,list,tuple, np.array, pd.Series, None, optional
         Partition divisions for the y variable. Select None for placing
-        the divisions according to one of the symbolic-type options.
+        the divisions according to one of the symbolic_type options.
         Must have same length as x_divs.
         Default: None. 
-    symbolic-type: str, optional
+    symbolic_type: str, optional
         Type of symbolic encoding. Options:
             - 'equal-divs': equal-sized divisions are
                 applied across the range of x and y, i.e.
@@ -56,9 +56,9 @@ def transfer_entropy_rate(x,y,x_divs=None,y_divs=None,symbolic_type='equal-divs'
         Default: zero
     units: str, optional
         Units to be used (base of the logarithm). Options:
-            - 'bit' or 'bits': log2 is adopted (default)
-            - 'nat' or 'nats': ln is adopted
-            - 'ban' or 'bans': log10 is adopted
+            - 'bits' (or 'bit'): log2 is adopted (default)
+            - 'nat' (or 'nats'): ln is adopted
+            - 'ban' (or 'bans'): log10 is adopted
     make_plot: bool, optional
         Whether to plot TE x L graph. Default: False.
     verbose: bool, optional
@@ -81,78 +81,38 @@ def transfer_entropy_rate(x,y,x_divs=None,y_divs=None,symbolic_type='equal-divs'
         measures from many individual short time-series
         of the same phenomena instead of using a single
         long time-series
-    mi_rate: calculates the Mutual Information Rate
+    mutual_info_rate: calculates the Mutual Information Rate
         with respect to the symbolic length
     pointwise: calculates the pointwise contributions to
         the information measurements
-    total_correlation: calculates the ammount of mutual
-        of a set of variables
+    total_correlation: calculates the total correlation
+        (multi-information) of a set of variables
 
     Examples
     -------
     ter = transfer_entropy_rate(x,y,symbolic_type='equal-points',n_symbols=10,units='bits')
     ter = transfer_entropy_rate(x,y,x_divs=[0.1,0.4],y_divs=[0.2,0.4],L_limit=8)
     '''
-    #import libraries
     import numpy as np
-    import pandas as pd
-    import cami
-    from scipy.stats import linregress
-
+    from . import _core
+    _core.log_function(units)
     #checking if minimum L_limit is satified
     if L_limit<3:
         raise ValueError('L_limit must be equal or greater than 3')
-
-    #interpolate missing data or trim if its in the edges
-    x,y=pd.to_numeric(x,errors='coerce'),pd.to_numeric(y,errors='coerce')
-    while np.isnan(x[0]) or np.isnan(y[0]):
-        x,y=x[1:],y[1:]
-    while np.isnan(x[-1]) or np.isnan(y[-1]):
-        x,y=x[:-1],y[:-1]
-    def interp_func(data):
-        idx_bads=np.isnan(data)
-        idx_goods=np.logical_not(idx_bads)
-        data_good=data[idx_goods]
-        interp_data=np.interp(idx_bads.nonzero()[0],idx_goods.nonzero()[0],data_good)
-        data[idx_bads]=interp_data
-        return data
-    x,y=interp_func(x),interp_func(y)
-    if delay>0:
-        x,y=x[:-delay],y[delay:]
-    elif delay<0:
-        x,y=x[delay:],y[:-delay]
-
-    #calculate transfer entropy as a function of symbolic length
-    te=np.zeros(L_limit)
-    for L in range(1,L_limit+1):
-        if x_divs==None and y_divs==None:
-            te[L-1]=cami.transfer_entropy(x,y,symbolic_type=symbolic_type,n_symbols=n_symbols,symbolic_length=L,tau=tau,units=units)
-        else:
-            te[L-1]=cami.transfer_entropy(x,y,x_divs=x_divs,y_divs=y_divs,symbolic_length=L,tau=tau,units=units)
-            
-    #finding the linear part (or the closest to linear)
-    te_diff2=np.diff(np.diff(te))
-    a=min(abs(te_diff2))
-    find_a=np.where(te_diff2==a)
-    find_b=np.where(te_diff2==-a)
-    if len(find_a[0])>0:
-        idx=find_a[0][0]
-    else:
-        idx=find_b[0][0]
-    #perform linear regression
-    ter=linregress(np.arange(3)+idx+1,te[idx:idx+3]).slope
-    #display result
-    if verbose==True:
+    #encode once; words of length L+1 extend those of length L
+    prepared = _core.Prepared(x, y, x_divs, y_divs, symbolic_type, n_symbols, tau, delay)
+    log = _core.log_function(units)
+    values = np.array([_core.measures_from_entropies(prepared.entropies('xy', (L, L, L), log, keep_future=True))[2]
+                       for L in range(1, L_limit+1)])
+    #linear regression over the part closest to linear
+    ter, idx = _core.linear_rate(values)
+    if verbose:
         print('Transfer Entropy Rate based on fitting from L=',idx+1,' to L=',idx+3,': ', ter)
-
-    #plot TE vs L
-    if make_plot==True:
+    if make_plot:
         import matplotlib.pyplot as plt
         plt.figure()
-        plt.plot(np.arange(L_limit)+1,te)
+        plt.plot(np.arange(L_limit)+1, values)
         plt.xlabel('Symbolic length (L)')
         plt.ylabel('Transfer Entropy ['+units+']')
         plt.show()
-
-    #return results
     return ter
