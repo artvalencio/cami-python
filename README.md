@@ -77,6 +77,24 @@ symbolic words, so large alphabets and long words no longer need huge
 dense tables.
 
 -----------------------------------------------------------------------------
+Performance (1.5.0 vs 1.403, N = 10^6 samples, same results):
+
+    cami (two_sided, L=3, 4 symbols)     619 ms / 81 MB  ->   52 ms / 28 MB
+    transfer_entropy (two_sided, L=2)    728 ms          ->   37 ms
+    cami_rate (L = 1..6)                2355 ms          ->  120 ms
+    total_correlation (4 variables)     5027 ms / 202 MB ->  128 ms / 65 MB
+    pointwise (two_sided, L=3)           913 ms / 146 MB ->  202 ms / 79 MB
+    surrogate_test (99, N = 10^5)       1167 ms          ->   70 ms
+    automatic tau (N = 2*10^4)           844 ms          ->   13 ms
+
+Estimates count only the observed symbolic words, so large alphabets and long
+words work; series longer than 2^20 samples are counted in chunks (memory
+grows by ~3 bytes per sample). measures() returns MI, CaMI, TE (both
+directions) and the directionality index in one pass; surrogate_test accepts
+n_jobs and a progress callback; get_prob(sparse=True) returns only the
+observed cells. Benchmarks: python benchmarks/run.py LABEL
+
+-----------------------------------------------------------------------------
 Running the tests:
 
     pip install -e .[test]
