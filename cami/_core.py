@@ -57,17 +57,18 @@ def _interpolate_nans(data):
     return data
 
 
-def _trim_and_interpolate(valid, *series):
-    idx = np.flatnonzero(valid)
-    if idx.size == 0:
+def _trim_and_interpolate(bad, *series):
+    '''Trims the edge samples where bad is True and interpolates interior NaNs.'''
+    if len(bad) == 0 or bad.all():
         raise ValueError('Error: time-series contains no numeric values')
-    return tuple(_interpolate_nans(s[idx[0]:idx[-1] + 1]) for s in series)
+    first, last = int(bad.argmin()), len(bad) - int(bad[::-1].argmin())  # no index array
+    return tuple(_interpolate_nans(s[first:last]) for s in series)
 
 
 def clean_series(x):
     '''Trims NaNs at the edges and linearly interpolates interior NaNs (on a copy).'''
     x = to_float_array(x)
-    return _trim_and_interpolate(~np.isnan(x), x)[0]
+    return _trim_and_interpolate(np.isnan(x), x)[0]
 
 
 def clean_pair(x, y):
@@ -75,7 +76,9 @@ def clean_pair(x, y):
     x, y = to_float_array(x), to_float_array(y)
     if len(x) != len(y):
         raise ValueError('Error: Length of x and y must be equal!')
-    return _trim_and_interpolate(~np.isnan(x) & ~np.isnan(y), x, y)
+    bad = np.isnan(x)
+    bad |= np.isnan(y)
+    return _trim_and_interpolate(bad, x, y)
 
 
 def apply_delay(x, y, delay):
@@ -280,8 +283,8 @@ def clean_multivariate(x):
     if x.ndim != 2:
         raise ValueError('Error: x must be 2-D, with rows as time and columns as variables')
     columns = [to_float_array(col) for col in x.T]
-    valid = np.logical_and.reduce([~np.isnan(col) for col in columns])
-    return np.column_stack(_trim_and_interpolate(valid, *columns))
+    bad = np.logical_or.reduce([np.isnan(col) for col in columns])
+    return np.column_stack(_trim_and_interpolate(bad, *columns))
 
 
 _TAU_AGGREGATES = {None: np.mean, 'average': np.mean, 'mean': np.mean,
@@ -615,6 +618,15 @@ def pair_entropies(a, b, c, log, method=None, bc_key=None):
         return entropies_from_table(np.bincount(key, minlength=size).reshape(na, nb, nc), log)
     keys, counts = np.unique(key, return_counts=True)
     del key
+    return entropies_from_keys(keys, counts, nb, nc, log)
+
+
+def entropies_from_keys(keys, counts, nb, nc, log):
+    '''pair_entropies from sorted unique joint keys and their counts.'''
+    def entropy(c):
+        c = c[c > 0]
+        return entropy_from_probs(c / c.sum(), log)
+
     ab_keys = keys // nc
     bc_keys = keys % (nb * nc)
     return {'a': entropy(_group_counts(ab_keys // nb, counts, True)),
@@ -622,6 +634,36 @@ def pair_entropies(a, b, c, log, method=None, bc_key=None):
             'ab': entropy(_group_counts(ab_keys, counts, True)),
             'bc': entropy(_group_counts(bc_keys, counts, False)),
             'abc': entropy(counts)}
+
+
+# series longer than this are counted in chunks of this many times (bounded memory)
+CHUNK_SIZE = 2 ** 20
+
+
+def chunked_pair_entropies(Sa, Sb, lengths, tau, n_symbols, log, start, stop):
+    '''pair_entropies of the words of cause Sa and effect Sb over [start, stop), building
+    word codes and keys one chunk at a time; counts (and so results) are identical.'''
+    lx, lyp, lyf = lengths
+    na, nb, nc = n_symbols ** lx, n_symbols ** lyp, n_symbols ** lyf
+    size = na * nb * nc
+    method = counting_method(size, stop - start)
+    table, parts = (np.zeros(size, dtype=np.int64), None) if method == 'dense' else (None, [])
+    for first in range(start, stop, CHUNK_SIZE):
+        last = min(first + CHUNK_SIZE, stop)
+        key = np.multiply(past_window(Sa, lx, tau, n_symbols, first, last), nb, dtype=np.int64)
+        key += past_window(Sb, lyp, tau, n_symbols, first, last)
+        key *= nc
+        key += future_window(Sb, lyf, tau, n_symbols, first, last)
+        if method == 'dense':
+            table += np.bincount(key, minlength=size)
+        else:
+            parts.append(np.unique(key, return_counts=True))
+        del key
+    if method == 'dense':
+        return entropies_from_table(table.reshape(na, nb, nc), log)
+    keys, inverse = np.unique(np.concatenate([k for k, __ in parts]), return_inverse=True)
+    counts = np.bincount(inverse, weights=np.concatenate([c for __, c in parts]))
+    return entropies_from_keys(keys, counts, nb, nc, log)
 
 
 def measures_from_entropies(h):
@@ -703,6 +745,16 @@ class Prepared:
     def entropies(self, direction, lengths, log, keep_future=False):
         '''pair_entropies of the words; future codes are dropped afterwards unless they
         will be extended (keep_future), as each direction uses its own.'''
+        start, stop = pair_window(self.n, lengths, self.tau)
+        size = 1
+        for length in lengths:
+            size *= self.n_symbols ** length
+        if self.n > CHUNK_SIZE and size < 2 ** 62:
+            if stop <= start:
+                raise ValueError('Error: time-series too short for the chosen symbolic_length and tau')
+            cause, effect = ('x', 'y') if direction == 'xy' else ('y', 'x')
+            return chunked_pair_entropies(self.symbols[cause], self.symbols[effect], lengths, self.tau,
+                                          self.n_symbols, log, start, stop)
         result = pair_entropies(*self.words(direction, lengths), log)
         if not keep_future:
             self.drop_future(direction)

@@ -89,3 +89,12 @@ def test_multithread_many_trials_time(big):
 def test_entropy_memory(big):
     assert peak_mb(lambda: cami.entropy(big[0], symbolic_length=3)) < 15
     assert peak_mb(lambda: cami.joint_entropy(*big, symbolic_length=3, n_symbols=4)) < 30
+
+
+def test_long_series_memory():
+    rng = np.random.default_rng(3)
+    n = 16 * 10**6
+    x = rng.random(n)
+    y = np.roll(x, 1)
+    # symbols take 2 bytes per sample; unchunked word codes and keys would add ~20 bytes per sample
+    assert peak_mb(lambda: cami.cami(x, y, symbolic_length=3, n_symbols=4, two_sided=True)) < 70
