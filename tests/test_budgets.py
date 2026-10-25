@@ -37,3 +37,9 @@ def peak_mb(func):
 
 def test_cami_two_sided_time(big):
     assert best_time(lambda: cami.cami(*big, symbolic_length=3, n_symbols=4, two_sided=True)) < 0.45  # tightened as phases land
+
+
+def test_total_correlation_time(big):
+    x, y = big
+    four = np.c_[x, y, np.roll(x, 3), np.roll(y, 5)]
+    assert best_time(lambda: cami.total_correlation(four, symbolic_length=2), repeats=1) < 0.5

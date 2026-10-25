@@ -23,3 +23,12 @@ def test_dense_counting_is_used_for_small_alphabets():
     assert _core.counting_method(size=4**9, n_samples=10**6) == 'dense'
     assert _core.counting_method(size=10**9, n_samples=10**6) == 'sparse'
     assert _core.counting_method(size=2**70, n_samples=10) == 'sparse'
+
+
+@pytest.mark.parametrize('n_vars,size', [(1, 4), (3, 8), (4, 1000), (5, 2**15)])
+def test_row_entropy_matches_lexicographic_row_counting(n_vars, size):
+    rng = np.random.default_rng(n_vars)
+    rows = rng.integers(0, min(size, 6), (4000, n_vars))
+    __, counts = np.unique(rows, axis=0, return_counts=True)
+    expected = _core.entropy_from_probs(counts / counts.sum(), LOG)
+    assert _core.entropy_of_rows(rows, LOG, size) == expected

@@ -86,5 +86,5 @@ def multivar_joint_entropy(x,x_divs=None,symbolic_type='equal-divs',n_symbols=2,
     '''
     from . import _core
     log = _core.log_function(units)
-    words = _core.multivariate_words(x, x_divs, symbolic_type, n_symbols, symbolic_length, tau)
-    return _core.entropy_of_rows(words, log)
+    words, size = _core.multivariate_words(x, x_divs, symbolic_type, n_symbols, symbolic_length, tau)
+    return _core.entropy_of_rows(words, log, size)

@@ -37,8 +37,10 @@ def to_float_array(x):
     '''Copies a time-series into a 1-D float array (non-numeric values become NaN).'''
     if isinstance(x, (pd.Series, pd.DataFrame, pd.Index)):
         x = x.to_numpy()
-    x = np.asarray(x).ravel()
-    return np.array(pd.to_numeric(x, errors='coerce'), dtype=float)
+    x = np.asarray(x)
+    if x.dtype.kind in 'biuf':  # already numeric: a single float copy, no pandas round-trip
+        return np.array(x, dtype=float).ravel()
+    return np.array(pd.to_numeric(x.ravel(), errors='coerce'), dtype=float)
 
 
 def _interpolate_nans(data):
@@ -214,7 +216,9 @@ def clean_multivariate(x):
     '''Columns are variables. Edge rows with any NaN are trimmed, interior NaNs interpolated.'''
     if isinstance(x, pd.DataFrame):
         x = x.to_numpy()
-    x = np.asarray(x, dtype=object)
+    x = np.asarray(x)
+    if x.dtype.kind not in 'biuf':
+        x = np.asarray(x, dtype=object)
     if x.ndim == 1:
         x = x[:, None]
     if x.ndim != 2:
@@ -263,13 +267,12 @@ def multivariate_words(x, x_divs, symbolic_type, n_symbols, symbolic_length, tau
     words = words[(words >= 0).all(axis=1)]
     if len(words) == 0:
         raise ValueError('Error: time-series too short for the chosen symbolic_length and tau')
-    return words
+    return words, n_symbols ** length
 
 
-def entropy_of_rows(rows, log):
-    '''Plug-in entropy of the joint distribution of the rows (sparse: only observed rows).'''
-    __, counts = np.unique(rows, axis=0, return_counts=True)
-    return entropy_from_probs(counts / counts.sum(), log)
+def entropy_of_rows(rows, log, size):
+    '''Plug-in entropy of the joint distribution of the rows; every column takes values in [0, size).'''
+    return entropy_of_codes(log, *[(col, size) for col in rows.T])
 
 
 def past_codes(S, length, tau, n_symbols):

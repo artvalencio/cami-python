@@ -87,6 +87,6 @@ def total_correlation(x,x_divs=None,symbolic_type='equal-divs',n_symbols=2,symbo
     '''
     from . import _core
     log = _core.log_function(units)
-    words = _core.multivariate_words(x, x_divs, symbolic_type, n_symbols, symbolic_length, tau)
-    marginal_entropies = sum(_core.entropy_of_rows(words[:, [i]], log) for i in range(words.shape[1]))
-    return marginal_entropies - _core.entropy_of_rows(words, log)
+    words, size = _core.multivariate_words(x, x_divs, symbolic_type, n_symbols, symbolic_length, tau)
+    marginal_entropies = sum(_core.entropy_of_codes(log, (col, size)) for col in words.T)
+    return marginal_entropies - _core.entropy_of_rows(words, log, size)
