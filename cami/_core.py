@@ -419,20 +419,6 @@ def entropy_from_probs(p, log):
     return float(-np.sum(p * log(p))) + 0.0  # + 0.0 avoids returning -0.0
 
 
-def divergence(p_joint, p_product, log):
-    '''sum p_joint * log(p_joint / p_product) over cells where both are positive.'''
-    mask = (p_joint > 0) & (p_product > 0)
-    return float(np.sum(p_joint[mask] * log(p_joint[mask] / p_product[mask])))
-
-
-def mutual_info_from_probs(p_x, p_y, p_xy, log):
-    return divergence(p_xy, p_x[:, None] * p_y[None, :], log)
-
-
-def cami_from_probs(p_xp, p_ypf, p_xypf, log):
-    return divergence(p_xypf, p_xp[:, None, None] * p_ypf[None, :, :], log)
-
-
 def pair_words(Sx, Sy, lengths, tau, n_symbols, allow_empty=False):
     '''Past-x, past-y and future-y word codes at every time where all three exist.'''
     lx, lyp, lyf = lengths
@@ -477,14 +463,6 @@ def entropy_of_codes(log, *words, method=None):
     return entropy_from_probs(counts / counts.sum(), log)
 
 
-def mutual_info_from_words(a, b, log):
-    return entropy_of_codes(log, a) + entropy_of_codes(log, b) - entropy_of_codes(log, a, b)
-
-
-def cami_from_words(a, b, c, log):
-    return entropy_of_codes(log, a) + entropy_of_codes(log, b, c) - entropy_of_codes(log, a, b, c)
-
-
 def _group_counts(sub_keys, counts, is_sorted):
     '''Counts aggregated by sub_key, in increasing sub_key order.'''
     if len(sub_keys) == 0:
@@ -502,14 +480,6 @@ def effect_key(b, c):
     key = np.multiply(cb, nc, dtype=np.int64)
     key += cc
     return key
-
-
-def sample_counts(key, size):
-    '''For every sample, how many samples share its key.'''
-    if counting_method(size, len(key)) == 'dense':
-        return np.bincount(key, minlength=size)[key]
-    __, inverse, counts = np.unique(key, return_inverse=True, return_counts=True)
-    return counts[inverse]
 
 
 def pointwise_values(a, b, c, log, normalized, out):
