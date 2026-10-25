@@ -110,14 +110,15 @@ def transfer_entropy(x,y,x_divs=None,y_divs=None,symbolic_type='equal-divs',n_sy
     te_xy,te_yx = transfer_entropy(x,y,x_divs=[0.3,0.4,0.5],y_divs=[0.1,0.4,0.7])
     '''
     from . import _core
-    from .get_prob import get_prob
     log = _core.log_function(units)
     x, y, Sx, Sy, n_symbols, tau = _core.prepare_pair(x, y, x_divs, y_divs, symbolic_type, n_symbols, tau, delay)
-    p_xp, p_yp, p_yf, p_ypf, p_xyp, p_xypf, lx, lyp, lyf = get_prob(Sx, Sy, n_symbols=n_symbols, symbolic_length=symbolic_length, tau=tau)
-    mutual_info = _core.mutual_info_from_probs(p_xp, p_yp, p_xyp, log)
-    te_xy = _core.cami_from_probs(p_xp, p_ypf, p_xypf, log) - mutual_info
+    lengths = _core.parse_symbolic_length(symbolic_length)
+
+    def te(Sa, Sb):
+        a, b, c = _core.pair_words(Sa, Sb, lengths, tau, n_symbols)
+        return _core.cami_from_words(a, b, c, log) - _core.mutual_info_from_words(a, b, log)
+
+    te_xy = te(Sx, Sy)
     if not two_sided:
         return te_xy
-    ip_xp, ip_yp, ip_yf, ip_ypf, ip_xyp, ip_xypf, __, __, __ = get_prob(Sy, Sx, n_symbols=n_symbols, symbolic_length=symbolic_length, tau=tau)
-    te_yx = _core.cami_from_probs(ip_xp, ip_ypf, ip_xypf, log) - _core.mutual_info_from_probs(ip_xp, ip_yp, ip_xyp, log)
-    return te_xy, te_yx
+    return te_xy, te(Sy, Sx)

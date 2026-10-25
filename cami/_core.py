@@ -314,6 +314,41 @@ def cami_from_probs(p_xp, p_ypf, p_xypf, log):
     return divergence(p_xypf, p_xp[:, None, None] * p_ypf[None, :, :], log)
 
 
+def pair_words(Sx, Sy, lengths, tau, n_symbols):
+    '''Past-x, past-y and future-y word codes at every time where all three exist.'''
+    lx, lyp, lyf = lengths
+    a = past_codes(Sx, lx, tau, n_symbols)
+    b = past_codes(Sy, lyp, tau, n_symbols)
+    c = future_codes(Sy, lyf, tau, n_symbols)
+    valid = (a >= 0) & (b >= 0) & (c >= 0)
+    if not valid.any():
+        raise ValueError('Error: time-series too short for the chosen symbolic_length and tau')
+    return (a[valid], n_symbols ** lx), (b[valid], n_symbols ** lyp), (c[valid], n_symbols ** lyf)
+
+
+def entropy_of_codes(log, *words):
+    '''Plug-in joint entropy of (codes, alphabet size) pairs, counting only observed combinations.'''
+    size = 1
+    for __, n in words:
+        size *= n
+    if size < 2 ** 62:
+        key = np.zeros(len(words[0][0]), dtype=np.int64)
+        for codes, n in words:
+            key = key * n + codes
+        __, counts = np.unique(key, return_counts=True)
+    else:
+        __, counts = np.unique(np.column_stack([codes for codes, __ in words]), axis=0, return_counts=True)
+    return entropy_from_probs(counts / counts.sum(), log)
+
+
+def mutual_info_from_words(a, b, log):
+    return entropy_of_codes(log, a) + entropy_of_codes(log, b) - entropy_of_codes(log, a, b)
+
+
+def cami_from_words(a, b, c, log):
+    return entropy_of_codes(log, a) + entropy_of_codes(log, b, c) - entropy_of_codes(log, a, b, c)
+
+
 def linear_rate(values):
     '''Slope of values vs. L over the 3-point window closest to linear.
 

@@ -110,15 +110,11 @@ def cami(x,y,x_divs=None,y_divs=None,symbolic_type='equal-divs',n_symbols=2,symb
     cami_xy = cami(x,y,x_divs=[0.5,3.2],y_divs=[-1,2.5],symbolic_length=2)
     '''
     from . import _core
-    from .get_prob import get_prob
     log = _core.log_function(units)
     x, y, Sx, Sy, n_symbols, tau = _core.prepare_pair(x, y, x_divs, y_divs, symbolic_type, n_symbols, tau, delay)
-    #get box probabilities and calculate CaMI X->Y
-    p_xp, p_yp, p_yf, p_ypf, p_xyp, p_xypf, lx, lyp, lyf = get_prob(Sx, Sy, n_symbols=n_symbols, symbolic_length=symbolic_length, tau=tau)
-    cami_xy = _core.cami_from_probs(p_xp, p_ypf, p_xypf, log)
+    lengths = _core.parse_symbolic_length(symbolic_length)
+    cami_xy = _core.cami_from_words(*_core.pair_words(Sx, Sy, lengths, tau, n_symbols), log)
     if not two_sided:
         return cami_xy
-    #calculate CaMI Y->X
-    ip_xp, ip_yp, ip_yf, ip_ypf, ip_xyp, ip_xypf, __, __, __ = get_prob(Sy, Sx, n_symbols=n_symbols, symbolic_length=symbolic_length, tau=tau)
-    cami_yx = _core.cami_from_probs(ip_xp, ip_ypf, ip_xypf, log)
+    cami_yx = _core.cami_from_words(*_core.pair_words(Sy, Sx, lengths, tau, n_symbols), log)
     return cami_xy, cami_yx

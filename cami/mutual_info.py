@@ -94,8 +94,8 @@ def mutual_info(x,y,x_divs=None,y_divs=None,symbolic_type='equal-divs',n_symbols
     mi = mutual_info(x,y,x_divs=[0.2,0.5],y_divs=[0.4,0.8])
     '''
     from . import _core
-    from .get_prob import get_prob
     log = _core.log_function(units)
     x, y, Sx, Sy, n_symbols, tau = _core.prepare_pair(x, y, x_divs, y_divs, symbolic_type, n_symbols, tau, delay)
-    p_xp, p_yp, __, __, p_xyp, __, __, __, __ = get_prob(Sx, Sy, n_symbols=n_symbols, symbolic_length=symbolic_length, tau=tau)
-    return _core.mutual_info_from_probs(p_xp, p_yp, p_xyp, log)
+    lengths = _core.parse_symbolic_length(symbolic_length)
+    a, b, __ = _core.pair_words(Sx, Sy, lengths, tau, n_symbols)
+    return _core.mutual_info_from_words(a, b, log)
