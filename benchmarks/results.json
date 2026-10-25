@@ -17,6 +17,16 @@
    "time_ms": 1054.24
   }
  },
+ "A10": {
+  "entropy L=3": {
+   "peak_mb": 13.0,
+   "time_ms": 13.48
+  },
+  "multithread 200 trials x 1000": {
+   "peak_mb": 10.06,
+   "time_ms": 14.7
+  }
+ },
  "A2-A4": {
   "auto tau slow sine (N=2e4)": {
    "peak_mb": 3.38,

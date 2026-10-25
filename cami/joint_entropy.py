@@ -100,13 +100,12 @@ def joint_entropy(x,y,x_divs=None,y_divs=None,symbolic_type='equal-divs',n_symbo
     H=joint_entropy(x,y,symbolic_type='equal-points',n_symbols=10,symbolic_length=(2,1),tau=1)
     H=joint_entropy(x,y,x_divs=[0.2,0.5],y_divs=[0.3,0.7])
     '''
-    import numpy as np
     from . import _core
     log = _core.log_function(units)
     x, y, Sx, Sy, n_symbols, tau = _core.prepare_pair(x, y, x_divs, y_divs, symbolic_type, n_symbols, tau, delay)
     lx, ly, __ = _core.parse_symbolic_length(symbolic_length, max_parts=2)
-    a = _core.past_codes(Sx, lx, tau, n_symbols)
-    b = _core.past_codes(Sy, ly, tau, n_symbols)
-    valid = (a >= 0) & (b >= 0)
-    p_xy = _core.histogram(np.where(valid, a * n_symbols ** ly + b, -1), n_symbols ** (lx + ly))
-    return _core.entropy_from_probs(p_xy, log)
+    start, stop = tau * max(lx, ly), len(Sx)
+    if stop <= start:
+        raise ValueError('Error: time-series too short for the chosen symbolic_length and tau')
+    return _core.entropy_of_codes(log, (_core.past_window(Sx, lx, tau, n_symbols, start, stop), n_symbols ** lx),
+                                  (_core.past_window(Sy, ly, tau, n_symbols, start, stop), n_symbols ** ly))

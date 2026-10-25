@@ -83,17 +83,18 @@ def entropy(x,x_divs=None,symbolic_type='equal-divs',n_symbols=2,symbolic_length
     H=entropy(x,symbolic_type='equal-points',n_symbols=10,symbolic_length=1,tau=1)
     '''
     from . import _core
-    from .symbolic_encoding import symbolic_encoding
     log = _core.log_function(units)
     x = _core.clean_series(x)
     x_divs = _core.as_divisions(x_divs)
     n_symbols = _core.as_int(n_symbols, 'n_symbols')
     if x_divs is None:
-        Sx = symbolic_encoding(x, x, symbolic_type=symbolic_type, n_symbols=n_symbols)[0]
+        Sx = _core.symbolize(x, symbolic_type, n_symbols)
     else:
-        Sx = symbolic_encoding(x, x, x_divs=list(x_divs), y_divs=list(x_divs))[0]
+        Sx = _core.encode(x, x_divs)
         n_symbols = len(x_divs) + 1
     tau = _core.resolve_tau(tau, x)
     lx = _core.as_int(symbolic_length, 'symbolic_length')
-    p_x = _core.histogram(_core.past_codes(Sx, lx, tau, n_symbols), n_symbols ** lx)
-    return _core.entropy_from_probs(p_x, log)
+    if tau * lx >= len(Sx):
+        raise ValueError('Error: time-series too short for the chosen symbolic_length and tau')
+    codes = _core.past_window(Sx, lx, tau, n_symbols, tau * lx, len(Sx))
+    return _core.entropy_of_codes(log, (codes, n_symbols ** lx))

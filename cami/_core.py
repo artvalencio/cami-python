@@ -141,13 +141,13 @@ def encode(data, divisions):
     return symbols
 
 
-def transform(data, symbolic_type):
-    '''Returns the data to encode (the series or its 1st/2nd difference) and the division placement.'''
+def transform(data, symbolic_type, axis=-1):
+    '''Returns the data to encode (the series or its 1st/2nd difference along axis) and the division placement.'''
     try:
         order, placement = SYMBOLIC_TYPES[symbolic_type]
     except (KeyError, TypeError):
         raise ValueError('Error: Unacceptable argument of symbolic type. See help on function.') from None
-    return (np.diff(data, order) if order else np.asarray(data)), placement
+    return (np.diff(data, order, axis=axis) if order else np.asarray(data)), placement
 
 
 def place_divisions(data, placement, n_symbols):
@@ -340,8 +340,11 @@ def code_dtype(size):
 
 
 def past_window(S, length, tau, n_symbols, start, stop):
-    '''Codes of the past words (as in past_codes) at the times n in [start, stop).'''
-    codes = np.zeros(stop - start, dtype=code_dtype(n_symbols ** length))
+    '''Codes of the past words (as in past_codes) at the times n in [start, stop).
+
+    S may be 2-D (time along axis 0, one column per trial).
+    '''
+    codes = np.zeros((stop - start,) + S.shape[1:], dtype=code_dtype(n_symbols ** length))
     for k in range(length - 1, -1, -1):  # Horner: oldest symbol is the least significant digit
         first = start - tau * length + k * tau
         codes *= n_symbols
@@ -350,8 +353,8 @@ def past_window(S, length, tau, n_symbols, start, stop):
 
 
 def future_window(S, length, tau, n_symbols, start, stop):
-    '''Codes of the future words (as in future_codes) at the times n in [start, stop).'''
-    codes = np.zeros(stop - start, dtype=code_dtype(n_symbols ** length))
+    '''Codes of the future words (as in future_codes) at the times n in [start, stop); S may be 2-D.'''
+    codes = np.zeros((stop - start,) + S.shape[1:], dtype=code_dtype(n_symbols ** length))
     for k in range(length - 1, -1, -1):
         codes *= n_symbols
         codes += S[start + k * tau:stop + k * tau]

@@ -64,39 +64,44 @@ def multithread_causality(x,y,x_divs=None,y_divs=None,symbolic_type='equal-divs'
         raise ValueError('Error: x and y must have the same number of trials')
     pairs = [_core.apply_delay(*_core.clean_pair(a, b), delay) for a, b in zip(x_trials, y_trials)]
     x_divs, y_divs = _core.resolve_pair_divisions(x_divs, y_divs)
+    #trials of equal length are stacked as columns and processed together
+    if len({len(a) for a, __ in pairs}) == 1:
+        x_trials, y_trials = [np.column_stack(series) for series in zip(*pairs)]
+        groups = [(x_trials, y_trials)]
+    else:
+        groups = pairs
     if x_divs is None:
         n_symbols = _core.as_int(n_symbols, 'n_symbols')
         symbols = []
-        for series in zip(*pairs):  #all x trials, then all y trials
-            transformed = [_core.transform(s, symbolic_type) for s in series]
-            pooled = np.concatenate([t for t, __ in transformed])
+        for series in zip(*groups):  #all x groups, then all y groups
+            transformed = [_core.transform(s, symbolic_type, axis=0) for s in series]
+            pooled = np.concatenate([t.ravel() for t, __ in transformed])
             divisions = _core.place_divisions(pooled, transformed[0][1], n_symbols)
+            del pooled
             symbols.append([_core.encode(t, divisions) for t, __ in transformed])
         Sx, Sy = symbols
     else:
-        Sx = [_core.encode(a, x_divs) for a, __ in pairs]
-        Sy = [_core.encode(b, y_divs) for __, b in pairs]
+        Sx = [_core.encode(a, x_divs) for a, __ in groups]
+        Sy = [_core.encode(b, y_divs) for __, b in groups]
         n_symbols = len(x_divs) + 1
     tau = _core.resolve_tau(tau, *[s for pair in pairs for s in pair])
+    del pairs, groups
     lengths = _core.parse_symbolic_length(symbolic_length)
 
-    def pooled_words(S_cause, S_effect):
+    def entropies(S_cause, S_effect):
         words = [_core.pair_words(a, b, lengths, tau, n_symbols, allow_empty=True) for a, b in zip(S_cause, S_effect)]
-        pooled = tuple((np.concatenate([w[i][0] for w in words]), words[0][i][1]) for i in range(3))
+        pooled = tuple((np.concatenate([w[i][0].ravel() for w in words]), words[0][i][1]) for i in range(3))
         if len(pooled[0][0]) == 0:
             raise ValueError('Error: trials too short for the chosen symbolic_length and tau')
-        return pooled
+        return _core.pair_entropies(*pooled, log)
 
-    a, b, c = pooled_words(Sx, Sy)
-    cami_xy = _core.cami_from_words(a, b, c, log)
-    mutual_info = _core.mutual_info_from_words(a, b, log)
-    a, b, c = pooled_words(Sy, Sx)
-    cami_yx = _core.cami_from_words(a, b, c, log)
+    cami_xy, mutual_info, te_xy = _core.measures_from_entropies(entropies(Sx, Sy))
+    cami_yx, __, te_yx = _core.measures_from_entropies(entropies(Sy, Sx))
     return {
         'cami_xy': cami_xy,
         'cami_yx': cami_yx,
         'mutual_info': mutual_info,
-        'te_xy': cami_xy - mutual_info,
-        'te_yx': cami_yx - _core.mutual_info_from_words(a, b, log),
+        'te_xy': te_xy,
+        'te_yx': te_yx,
         'directionality': cami_xy - cami_yx,
     }

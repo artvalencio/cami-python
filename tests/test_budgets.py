@@ -78,3 +78,14 @@ def test_pointwise_large_alphabet_needs_no_dense_tables():
     x = rng.random(20000)
     # dense tables would need 10**12 cells
     assert peak_mb(lambda: cami.pointwise(x, np.roll(x, 1), n_symbols=10, symbolic_length=4, make_plot=False)) < 50
+
+
+def test_multithread_many_trials_time(big):
+    x, y = big
+    xt, yt = x.reshape(500, 2000), y.reshape(500, 2000)
+    assert best_time(lambda: cami.multithread_causality(xt, yt, symbolic_length=2)) < 0.15
+
+
+def test_entropy_memory(big):
+    assert peak_mb(lambda: cami.entropy(big[0], symbolic_length=3)) < 15
+    assert peak_mb(lambda: cami.joint_entropy(*big, symbolic_length=3, n_symbols=4)) < 30
