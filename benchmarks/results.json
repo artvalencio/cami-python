@@ -29,6 +29,56 @@
    "time_ms": 254.69
   }
  },
+ "A8-M1": {
+  "auto tau slow sine (N=2e4)": {
+   "peak_mb": 3.7,
+   "time_ms": 10.22
+  },
+  "cami L=1 ns=2": {
+   "peak_mb": 38.07,
+   "time_ms": 35.62
+  },
+  "cami L=3 ns=10": {
+   "peak_mb": 70.71,
+   "time_ms": 155.65
+  },
+  "cami two_sided L=3 ns=4": {
+   "peak_mb": 25.48,
+   "time_ms": 78.55
+  },
+  "cami_rate L_limit=6": {
+   "peak_mb": 58.33,
+   "time_ms": 336.34
+  },
+  "entropy L=3": {
+   "peak_mb": 48.0,
+   "time_ms": 41.73
+  },
+  "multithread 200 trials x 1000": {
+   "peak_mb": 12.65,
+   "time_ms": 33.05
+  },
+  "mutual_info L=2": {
+   "peak_mb": 38.07,
+   "time_ms": 37.38
+  },
+  "pointwise two_sided L=3 ns=4": {
+   "peak_mb": 131.53,
+   "time_ms": 453.46
+  },
+  "surrogate_test 99 (N=1e5)": {
+   "peak_mb": 6.28,
+   "time_ms": 373.88
+  },
+  "total_correlation 4 vars L=2": {
+   "peak_mb": 65.0,
+   "time_ms": 121.52
+  },
+  "transfer_entropy two_sided L=2": {
+   "peak_mb": 38.07,
+   "time_ms": 95.68
+  }
+ },
  "baseline": {
   "auto tau slow sine (N=2e4)": {
    "peak_mb": 1.6,

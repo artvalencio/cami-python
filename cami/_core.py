@@ -35,18 +35,23 @@ def as_int(value, name):
 
 
 def to_float_array(x):
-    '''Copies a time-series into a 1-D float array (non-numeric values become NaN).'''
+    '''A 1-D float view or copy of a time-series (non-numeric values become NaN).
+
+    The result may share memory with the input: callers must not modify it in place
+    (_interpolate_nans copies before writing).
+    '''
     if isinstance(x, (pd.Series, pd.DataFrame, pd.Index)):
         x = x.to_numpy()
     x = np.asarray(x)
-    if x.dtype.kind in 'biuf':  # already numeric: a single float copy, no pandas round-trip
-        return np.array(x, dtype=float).ravel()
+    if x.dtype.kind in 'biuf':  # already numeric: no pandas round-trip, no copy for float64
+        return np.asarray(x, dtype=float).ravel()
     return np.array(pd.to_numeric(x.ravel(), errors='coerce'), dtype=float)
 
 
 def _interpolate_nans(data):
     bad = np.isnan(data)
     if bad.any():
+        data = data.copy()  # never write into the caller's array
         good = ~bad
         data[bad] = np.interp(np.flatnonzero(bad), np.flatnonzero(good), data[good])
     return data
@@ -115,12 +120,25 @@ SYMBOLIC_TYPES = {
 }
 
 
+def symbol_dtype(n_symbols):
+    return np.uint8 if n_symbols <= 256 else np.uint16 if n_symbols <= 65536 else np.int64
+
+
 def encode(data, divisions):
-    '''Symbol i is given to values in [divisions[i-1], divisions[i]).'''
+    '''Symbol i is given to values in [divisions[i-1], divisions[i]) (compact integer dtype).'''
     divisions = np.asarray(divisions, dtype=float)
     if np.any(np.diff(divisions) < 0):
         raise ValueError('Error: partition divisions must be in increasing order')
-    return np.searchsorted(divisions, data, side='right')
+    data = np.asarray(data, dtype=float)
+    dtype = symbol_dtype(len(divisions) + 1)
+    if len(divisions) > 16:
+        return np.searchsorted(divisions, data, side='right').astype(dtype)
+    # few divisions: one comparison pass each, without a temporary int64 array
+    symbols = np.zeros(data.shape, dtype=dtype)
+    for division in divisions:
+        symbols += data >= division
+    symbols[np.isnan(data)] = len(divisions)  # as np.searchsorted places NaN
+    return symbols
 
 
 def transform(data, symbolic_type):
@@ -237,15 +255,14 @@ def prepare_pair(x, y, x_divs, y_divs, symbolic_type, n_symbols, tau, delay):
 
     Returns x, y, Sx, Sy, n_symbols, tau.
     '''
-    from .symbolic_encoding import symbolic_encoding
     x, y = clean_pair(x, y)
     x, y = apply_delay(x, y, delay)
     x_divs, y_divs = resolve_pair_divisions(x_divs, y_divs)
     n_symbols = as_int(n_symbols, 'n_symbols')
     if x_divs is None:
-        Sx, Sy = symbolic_encoding(x, y, symbolic_type=symbolic_type, n_symbols=n_symbols)
+        Sx, Sy = symbolize(x, symbolic_type, n_symbols), symbolize(y, symbolic_type, n_symbols)
     else:
-        Sx, Sy = symbolic_encoding(x, y, x_divs=list(x_divs), y_divs=list(y_divs))
+        Sx, Sy = encode(x, x_divs), encode(y, y_divs)
         n_symbols = len(x_divs) + 1
     tau = resolve_tau(tau, x, y)
     return x, y, Sx, Sy, n_symbols, tau
@@ -302,16 +319,49 @@ def multivariate_words(x, x_divs, symbolic_type, n_symbols, symbolic_length, tau
         n_symbols = len(divisions[0]) + 1
     tau = resolve_multivariate_tau(tau, x)
     length = as_int(symbolic_length, 'symbolic_length')
-    words = np.column_stack([past_codes(S, length, tau, n_symbols) for S in symbols])
-    words = words[(words >= 0).all(axis=1)]
-    if len(words) == 0:
+    del x
+    start, stop = tau * length, len(symbols[0])
+    if stop <= start:
         raise ValueError('Error: time-series too short for the chosen symbolic_length and tau')
-    return words, n_symbols ** length
+    return [past_window(S, length, tau, n_symbols, start, stop) for S in symbols], n_symbols ** length
 
 
-def entropy_of_rows(rows, log, size):
-    '''Plug-in entropy of the joint distribution of the rows; every column takes values in [0, size).'''
-    return entropy_of_codes(log, *[(col, size) for col in rows.T])
+def entropy_of_rows(columns, log, size):
+    '''Plug-in joint entropy of columns (2-D array or list of arrays) taking values in [0, size).'''
+    if isinstance(columns, np.ndarray) and columns.ndim == 2:
+        columns = columns.T
+    return entropy_of_codes(log, *[(col, size) for col in columns])
+
+
+def code_dtype(size):
+    if size >= 2 ** 63:
+        raise ValueError('Error: n_symbols**symbolic_length is too large (more than 2**63 words)')
+    return np.int32 if size < 2 ** 31 else np.int64
+
+
+def past_window(S, length, tau, n_symbols, start, stop):
+    '''Codes of the past words (as in past_codes) at the times n in [start, stop).'''
+    codes = np.zeros(stop - start, dtype=code_dtype(n_symbols ** length))
+    for k in range(length - 1, -1, -1):  # Horner: oldest symbol is the least significant digit
+        first = start - tau * length + k * tau
+        codes *= n_symbols
+        codes += S[first:first + stop - start]
+    return codes
+
+
+def future_window(S, length, tau, n_symbols, start, stop):
+    '''Codes of the future words (as in future_codes) at the times n in [start, stop).'''
+    codes = np.zeros(stop - start, dtype=code_dtype(n_symbols ** length))
+    for k in range(length - 1, -1, -1):
+        codes *= n_symbols
+        codes += S[start + k * tau:stop + k * tau]
+    return codes
+
+
+def pair_window(n, lengths, tau):
+    '''Times [start, stop) where the past of x, past of y and future of y all exist.'''
+    lx, lyp, lyf = lengths
+    return tau * max(lx, lyp), n - tau * (lyf - 1)
 
 
 def past_codes(S, length, tau, n_symbols):
@@ -380,13 +430,14 @@ def cami_from_probs(p_xp, p_ypf, p_xypf, log):
 def pair_words(Sx, Sy, lengths, tau, n_symbols, allow_empty=False):
     '''Past-x, past-y and future-y word codes at every time where all three exist.'''
     lx, lyp, lyf = lengths
-    a = past_codes(Sx, lx, tau, n_symbols)
-    b = past_codes(Sy, lyp, tau, n_symbols)
-    c = future_codes(Sy, lyf, tau, n_symbols)
-    valid = (a >= 0) & (b >= 0) & (c >= 0)
-    if not valid.any() and not allow_empty:
-        raise ValueError('Error: time-series too short for the chosen symbolic_length and tau')
-    return (a[valid], n_symbols ** lx), (b[valid], n_symbols ** lyp), (c[valid], n_symbols ** lyf)
+    start, stop = pair_window(len(Sx), lengths, tau)
+    if stop <= start:
+        if not allow_empty:
+            raise ValueError('Error: time-series too short for the chosen symbolic_length and tau')
+        start = stop = 0
+    return ((past_window(Sx, lx, tau, n_symbols, start, stop), n_symbols ** lx),
+            (past_window(Sy, lyp, tau, n_symbols, start, stop), n_symbols ** lyp),
+            (future_window(Sy, lyf, tau, n_symbols, start, stop), n_symbols ** lyf))
 
 
 def counting_method(size, n_samples):
@@ -410,9 +461,10 @@ def entropy_of_codes(log, *words, method=None):
     for __, n in words:
         size *= n
     if size < 2 ** 62:
-        key = np.zeros(len(words[0][0]), dtype=np.int64)
-        for codes, n in words:
-            key = key * n + codes
+        key = np.array(words[0][0], dtype=np.int64)
+        for codes, n in words[1:]:
+            key *= n
+            key += codes
         counts = count_keys(key, size, method)
     else:
         __, counts = np.unique(np.column_stack([codes for codes, __ in words]), axis=0, return_counts=True)

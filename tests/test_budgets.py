@@ -36,7 +36,7 @@ def peak_mb(func):
 
 
 def test_cami_two_sided_time(big):
-    assert best_time(lambda: cami.cami(*big, symbolic_length=3, n_symbols=4, two_sided=True)) < 0.45  # tightened as phases land
+    assert best_time(lambda: cami.cami(*big, symbolic_length=3, n_symbols=4, two_sided=True)) < 0.2
 
 
 def test_total_correlation_time(big):
@@ -49,3 +49,8 @@ def test_auto_tau_time():
     from cami import _core
     slow_sine = np.sin(np.arange(20000) / 2000.0)
     assert best_time(lambda: _core.first_zero_autocorrelation(slow_sine)) < 0.03
+
+
+def test_cami_memory(big):
+    # input: two float64 series of 8 MB each
+    assert peak_mb(lambda: cami.cami(*big, symbolic_length=3, n_symbols=4, two_sided=True)) < 30
