@@ -71,14 +71,14 @@ def get_prob(Sx,Sy,n_symbols=2,symbolic_length=1,tau=1):
     phi_x = _core.past_codes(Sx, lx, tau, n_symbols)
     phi_yp = _core.past_codes(Sy, lyp, tau, n_symbols)
     phi_yf = _core.future_codes(Sy, lyf, tau, n_symbols)
-    #marginal probabilities
-    p_xp = _core.histogram(phi_x, nx)
-    p_yp = _core.histogram(phi_yp, nyp)
-    p_yf = _core.histogram(phi_yf, nyf)
-    #joint probabilities, over the times where all words exist
+    #joint distribution over the times where all three words exist;
+    #every marginal is derived from it so that the estimator is consistent
     valid = (phi_x >= 0) & (phi_yp >= 0) & (phi_yf >= 0)
     a, b, c = phi_x[valid], phi_yp[valid], phi_yf[valid]
-    p_ypf = _core.histogram(b * nyf + c, nyp * nyf).reshape(nyp, nyf)
-    p_xyp = _core.histogram(a * nyp + b, nx * nyp).reshape(nx, nyp)
     p_xypf = _core.histogram((a * nyp + b) * nyf + c, nx * nyp * nyf).reshape(nx, nyp, nyf)
+    p_xyp = p_xypf.sum(axis=2)
+    p_ypf = p_xypf.sum(axis=0)
+    p_xp = p_xyp.sum(axis=1)
+    p_yp = p_xyp.sum(axis=0)
+    p_yf = p_ypf.sum(axis=0)
     return p_xp, p_yp, p_yf, p_ypf, p_xyp, p_xypf, lx, lyp, lyf
