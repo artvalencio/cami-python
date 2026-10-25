@@ -185,8 +185,8 @@ def pointwise(x,y,method='normalized',x_divs=None,y_divs=None,symbolic_type='equ
             pmi[mask] = -pmi[mask] / log(p_xyp[mask])
     te_xy = cami_xy - mutual_info
     if two_sided:
-        pcami_yx, pte_yx, cami_yx, __ = causal_tables(Sy, Sx)
-        te_yx = cami_yx - mutual_info
+        pcami_yx, pte_yx, cami_yx, (ip_xp, ip_yp, ip_xyp) = causal_tables(Sy, Sx)
+        te_yx = cami_yx - _core.mutual_info_from_probs(ip_xp, ip_yp, ip_xyp, log)
 
     #log overall information measures
     summary = ['Information values:', 'Mutual Information: %s' % mutual_info,
@@ -198,17 +198,18 @@ def pointwise(x,y,method='normalized',x_divs=None,y_divs=None,symbolic_type='equ
         summary += ['Transfer Entropy Y->X: %s' % te_yx, 'Directionality Index: %s' % (cami_xy - cami_yx)]
     _core.logger.info('\n'.join(summary))
 
-    #passing the results to time-series
-    lmax = max([lx, lyp, lyf])
-
+    #passing the results to time-series: entry i holds the value for the
+    #words around time n = i + tau*lx, i.e. i is where the past of x starts
     def to_series(phis, tables):
         phi_a, phi_bp, phi_bf = phis
-        out = [np.full(len(x), np.nan) for __ in tables]
-        for i in range(len(Sx) - lmax):
-            a, b, c = phi_a[i + lx], phi_bp[i + lyp], phi_bf[i + lyf]
-            if a >= 0 and b >= 0 and c >= 0:
-                for series, table in zip(out, tables):
-                    series[i] = table[a, b] if table.ndim == 2 else table[a, b, c]
+        valid = (phi_a >= 0) & (phi_bp >= 0) & (phi_bf >= 0)
+        i = np.flatnonzero(valid) - tau * lx
+        a, b, c = phi_a[valid], phi_bp[valid], phi_bf[valid]
+        out = []
+        for table in tables:
+            series = np.full(len(x), np.nan)
+            series[i] = table[a, b] if table.ndim == 2 else table[a, b, c]
+            out.append(series)
         return out
 
     point_mi, point_cami_xy, point_te_xy = to_series(words(Sx, Sy), (pmi, pcami_xy, pte_xy))
@@ -238,13 +239,13 @@ def pointwise(x,y,method='normalized',x_divs=None,y_divs=None,symbolic_type='equ
             layout = 310
         for n, (values, title) in enumerate(panels):
             ax = fig.add_subplot(layout + n + 1)
-            vlim = max(abs(min(values)), abs(max(values)))
+            vlim = np.nanmax(np.abs(values))
             im = ax.scatter(x[:len(values)], y[:len(values)], c=values, cmap='bwr', marker='.', linewidths=0,
                             edgecolors='none', alpha=alpha, vmin=-vlim, vmax=vlim)
             ax.set_title(title)
             fig.colorbar(im, ax=ax)
         plt.tight_layout()
-        if save == 'colab' or save == 'True':
+        if save is True or save in ('True', 'colab'):
             plt.savefig('fig.jpg')
         plt.show()
         if save == 'colab':
