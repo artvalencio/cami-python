@@ -93,66 +93,27 @@ def cami_rate(x,y,x_divs=None,y_divs=None,symbolic_type='equal-divs',n_symbols=2
     camir_xy = cami_rate(x,y,symbolic_type='equal-points',n_symbols=10,units='bits')
     camir_xy = cami_rate(x,y,x_divs=[0.2,0.5,0.7],y_divs=[0.3,0.6,0.9],units='bits')
     '''
-    #import libraries
     import numpy as np
-    import pandas as pd
-    import cami
-    from scipy.stats import linregress
-
+    from . import _core
+    from .cami import cami
+    _core.log_function(units)
     #checking if minimum L_limit is satified
     if L_limit<3:
         raise ValueError('L_limit must be equal or greater than 3')
-
-    #interpolate missing data or trim if its in the edges
-    x,y=pd.to_numeric(x,errors='coerce'),pd.to_numeric(y,errors='coerce')
-    while np.isnan(x[0]) or np.isnan(y[0]):
-        x,y=x[1:],y[1:]
-    while np.isnan(x[-1]) or np.isnan(y[-1]):
-        x,y=x[:-1],y[:-1]
-    def interp_func(data):
-        idx_bads=np.isnan(data)
-        idx_goods=np.logical_not(idx_bads)
-        data_good=data[idx_goods]
-        interp_data=np.interp(idx_bads.nonzero()[0],idx_goods.nonzero()[0],data_good)
-        data[idx_bads]=interp_data
-        return data
-    x,y=interp_func(x),interp_func(y)
-    if delay>0:
-        x,y=x[:-delay],y[delay:]
-    elif delay<0:
-        x,y=x[delay:],y[:-delay]
-        
-    #calculate cami as a function of symbolic length
-    cami_val=np.zeros(L_limit)
-    for L in range(1,L_limit+1):
-        if x_divs==None and y_divs==None:
-            cami_val[L-1]=cami.cami(x,y,symbolic_type=symbolic_type,n_symbols=n_symbols,symbolic_length=L,tau=tau,units=units)
-        else:
-            cami_val[L-1]=cami.cami(x,y,x_divs=x_divs,y_divs=y_divs,symbolic_length=L,tau=tau,units=units)
-
-    #finding the linear part (or the closest to linear)
-    cami_diff2=np.diff(np.diff(cami_val))
-    a=min(abs(cami_diff2))
-    find_a=np.where(cami_diff2==a)
-    find_b=np.where(cami_diff2==-a)
-    if len(find_a[0])>0:
-        idx=find_a[0][0]
-    else:
-        idx=find_b[0][0]
-    #perform linear regression
-    camir=linregress(np.arange(3)+idx+1,cami_val[idx:idx+3]).slope
-    #display result
-    if verbose==True:
+    x, y = _core.clean_pair(x, y)
+    x, y = _core.apply_delay(x, y, delay)
+    #calculate the measure as a function of symbolic length
+    values = np.array([cami(x, y, x_divs=x_divs, y_divs=y_divs, symbolic_type=symbolic_type, n_symbols=n_symbols,
+                          symbolic_length=L, tau=tau, units=units) for L in range(1, L_limit+1)])
+    #linear regression over the part closest to linear
+    camir, idx = _core.linear_rate(values)
+    if verbose:
         print('Causal Mutual Information Rate based on fitting from L=',idx+1,' to L=',idx+3,': ', camir)
-
-    #plot CaMI vs L
-    if make_plot==True:
+    if make_plot:
         import matplotlib.pyplot as plt
         plt.figure()
-        plt.plot(np.arange(L_limit)+1,cami_val)
+        plt.plot(np.arange(L_limit)+1, values)
         plt.xlabel('Symbolic length (L)')
         plt.ylabel('Causal Mutual Information ['+units+']')
         plt.show()
-
-    #return results
     return camir

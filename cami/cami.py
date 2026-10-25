@@ -109,102 +109,16 @@ def cami(x,y,x_divs=None,y_divs=None,symbolic_type='equal-divs',n_symbols=2,symb
     cami_xy,cami_yx = cami(x,y,symbolic_type='equal-points',n_symbols=10,symbolic_length=1,two_sided=True)
     cami_xy = cami(x,y,x_divs=[0.5,3.2],y_divs=[-1,2.5],symbolic_length=2)
     '''
-    import numpy as np
-    import pandas as pd
-    import cami
-    #checking units
-    if units=='bit' or units=='bits' or units=='nat' or units=='nats' or units=='ban' or units=='bans':
-        pass
-    else:
-        raise ValueError('Units must be bits or nat or ban. See help on function.')
-    #interpolate missing data or trim if its in the edges
-    x,y=pd.to_numeric(x,errors='coerce'),pd.to_numeric(y,errors='coerce')
-    while np.isnan(x[0]) or np.isnan(y[0]):
-        x,y=x[1:],y[1:]
-    while np.isnan(x[-1]) or np.isnan(y[-1]):
-        x,y=x[:-1],y[:-1]
-    def interp_func(data):
-        idx_bads=np.isnan(data)
-        idx_goods=np.logical_not(idx_bads)
-        data_good=data[idx_goods]
-        interp_data=np.interp(idx_bads.nonzero()[0],idx_goods.nonzero()[0],data_good)
-        data[idx_bads]=interp_data
-        return data
-    x,y=interp_func(x),interp_func(y)
-    if delay>0:
-        x,y=x[:-delay],y[delay:]
-    elif delay<0:
-        x,y=x[delay:],y[:-delay]
-    #convert to symbolic sequence
-    if type(x_divs)==int or type(x_divs)==float:
-        x_divs=[x_divs]
-    if type(y_divs)==int or type(y_divs)==float:
-        y_divs=[y_divs]
-    if x_divs==None and y_divs==None:
-        Sx,Sy=cami.symbolic_encoding(x,y,symbolic_type=symbolic_type,n_symbols=n_symbols)
-    elif (x_divs==None and y_divs!=None) or (x_divs!=None and y_divs==None):
-        raise ValueError("Inconsistent use of partition divisions: x_divs and y_divs must both be None or both be a float, list or tuple of same length")
-    elif len(x_divs)!=len(y_divs):
-        raise ValueError("x_divs and y_divs must have same length")
-    else:
-        Sx,Sy=cami.symbolic_encoding(x,y,x_divs=x_divs,y_divs=y_divs)
-        n_symbols=len(x_divs)+1
-    
-    #calculate tau
-    if tau==None:
-        def get_tau(data):
-            old_corr_val=1
-            tau=None
-            for i in range(1,len(data)):
-                new_corr_val=np.corrcoef(data[:-i],data[i:])[0,1]
-                if old_corr_val>0 and new_corr_val<=0:
-                    tau=i
-                    break
-                old_corr_val=new_corr_val
-            if tau==None:
-                tau=1
-            return tau
-        tau=max(get_tau(x),get_tau(y))
-        print('Selected tau=',tau,' by the method of first zero of auto-correlation',sep='')
-    #get box probabilities
-    p_xp,p_yp,p_yf,p_ypf,p_xyp,p_xypf,lx,lyp,lyf=cami.get_prob(Sx,Sy,n_symbols=n_symbols,symbolic_length=symbolic_length,tau=tau)
-    if two_sided==True:
-        ip_x,ip_yp,ip_yf,ip_ypf,ip_xyp,ip_xypf,__,__,__=cami.get_prob(Sy,Sx,n_symbols=n_symbols,symbolic_length=symbolic_length,tau=tau)
-    #calculate CaMI X->Y
-    cami_xy=0
-    pcami_xy=np.zeros([n_symbols**lx,n_symbols**lyp,n_symbols**lyf])
-    for i in range(n_symbols**lx):
-        for j in range(n_symbols**lyp):
-            for k in range(n_symbols**lyf):
-                if (p_xp[i]*p_ypf[j,k]>0) and (p_xypf[i,j,k]>0):
-                    if units=='nat' or units=='nats':
-                        pcami_xy[i,j,k]=p_xypf[i,j,k]*np.log(p_xypf[i,j,k]/(p_xp[i]*p_ypf[j,k]))
-                    elif units=='ban' or units=='bans':
-                        pcami_xy[i,j,k]=p_xypf[i,j,k]*np.log10(p_xypf[i,j,k]/(p_xp[i]*p_ypf[j,k]))
-                    else:
-                        pcami_xy[i,j,k]=p_xypf[i,j,k]*np.log2(p_xypf[i,j,k]/(p_xp[i]*p_ypf[j,k]))
-                    cami_xy=cami_xy+pcami_xy[i,j,k]
-                else:
-                    pcami_xy[i,j,k]=0
-    #calculate CaMI Y->X
-    if two_sided==True:
-        pcami_yx=np.zeros([n_symbols**lx,n_symbols**lyp,n_symbols**lyf])
-        cami_yx=0
-        for i in range(n_symbols**lx):
-            for j in range(n_symbols**lyp):
-                for k in range(n_symbols**lyf):
-                    if (ip_x[i]*ip_ypf[j,k]>0) and (ip_xypf[i,j,k]>0):
-                        if units=='nat' or units=='nats':
-                            pcami_yx[i,j,k]=ip_xypf[i,j,k]*np.log(ip_xypf[i,j,k]/(ip_x[i]*ip_ypf[j,k]))
-                        elif units=='ban' or units=='bans':
-                            pcami_yx[i,j,k]=ip_xypf[i,j,k]*np.log10(ip_xypf[i,j,k]/(ip_x[i]*ip_ypf[j,k]))
-                        else:
-                            pcami_yx[i,j,k]=ip_xypf[i,j,k]*np.log2(ip_xypf[i,j,k]/(ip_x[i]*ip_ypf[j,k]))
-                        cami_yx=cami_yx+pcami_yx[i,j,k]
-                    else:
-                        pcami_yx[i,j,k]=0
-    #Return results
-    if two_sided==True:
-        return cami_xy,cami_yx
-    else:
+    from . import _core
+    from .get_prob import get_prob
+    log = _core.log_function(units)
+    x, y, Sx, Sy, n_symbols, tau = _core.prepare_pair(x, y, x_divs, y_divs, symbolic_type, n_symbols, tau, delay)
+    #get box probabilities and calculate CaMI X->Y
+    p_xp, p_yp, p_yf, p_ypf, p_xyp, p_xypf, lx, lyp, lyf = get_prob(Sx, Sy, n_symbols=n_symbols, symbolic_length=symbolic_length, tau=tau)
+    cami_xy = _core.cami_from_probs(p_xp, p_ypf, p_xypf, log)
+    if not two_sided:
         return cami_xy
+    #calculate CaMI Y->X
+    ip_xp, ip_yp, ip_yf, ip_ypf, ip_xyp, ip_xypf, __, __, __ = get_prob(Sy, Sx, n_symbols=n_symbols, symbolic_length=symbolic_length, tau=tau)
+    cami_yx = _core.cami_from_probs(ip_xp, ip_ypf, ip_xypf, log)
+    return cami_xy, cami_yx
