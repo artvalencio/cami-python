@@ -87,3 +87,22 @@ def test_parallel_workers_do_not_change_results(coupled):
     serial = cami.surrogate_test(*coupled, n_surrogates=12, seed=9)
     parallel = cami.surrogate_test(*coupled, n_surrogates=12, seed=9, n_jobs=3)
     np.testing.assert_array_equal(serial['surrogates'], parallel['surrogates'])
+
+
+@pytest.mark.parametrize('n_jobs', [1, 2])
+def test_progress_callback(coupled, n_jobs):
+    calls = []
+    cami.surrogate_test(*coupled, n_surrogates=5, seed=0, n_jobs=n_jobs, progress=lambda done, total: calls.append((done, total)))
+    assert calls == [(k, 5) for k in range(1, 6)]
+
+
+def test_progress_callback_can_stop_the_test(coupled):
+    class Stop(Exception):
+        pass
+
+    def stop_after_two(done, total):
+        if done == 2:
+            raise Stop
+
+    with pytest.raises(Stop):
+        cami.surrogate_test(*coupled, n_surrogates=50, seed=0, progress=stop_after_two)

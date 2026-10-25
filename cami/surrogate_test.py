@@ -1,4 +1,4 @@
-def surrogate_test(x,y,measure='cami',n_surrogates=100,method='circular',alpha=0.05,seed=None,n_jobs=1,_fast=True,**kwargs):
+def surrogate_test(x,y,measure='cami',n_surrogates=100,method='circular',alpha=0.05,seed=None,n_jobs=1,progress=None,_fast=True,**kwargs):
     ''' Tests whether an information measure between x and y is larger
         than expected by chance, by recomputing it on surrogate data in
         which the relationship between x and y has been destroyed.
@@ -28,6 +28,9 @@ def surrogate_test(x,y,measure='cami',n_surrogates=100,method='circular',alpha=0
     n_jobs: int, optional
         Number of threads computing surrogates (-1: one per CPU). The
         results do not depend on it. Default: 1.
+    progress: callable, None, optional
+        Called as progress(done, n_surrogates) after each surrogate, e.g. to
+        update a progress bar; an exception it raises stops the test.
     **kwargs:
         Passed to the measure (e.g. n_symbols, symbolic_length, tau).
 
@@ -113,12 +116,21 @@ def surrogate_test(x,y,measure='cami',n_surrogates=100,method='circular',alpha=0
         def one(rng):
             return func(reorder(x, rng), y, **kwargs)
 
+    surrogates = np.empty(n_surrogates)
     if n_jobs == 1:
-        surrogates = np.array([one(rng) for rng in generators])
+        values = (one(rng) for rng in generators)
     else:
         from concurrent.futures import ThreadPoolExecutor
-        with ThreadPoolExecutor(max_workers=n_jobs if n_jobs > 0 else None) as pool:
-            surrogates = np.array(list(pool.map(one, generators)))
+        pool = ThreadPoolExecutor(max_workers=n_jobs if n_jobs > 0 else None)
+        values = pool.map(one, generators)
+    try:
+        for k, surrogate_value in enumerate(values):
+            surrogates[k] = surrogate_value
+            if progress is not None:
+                progress(k + 1, n_surrogates)
+    finally:
+        if n_jobs != 1:
+            pool.shutdown(wait=True, cancel_futures=True)
     p_value = (1 + np.sum(surrogates >= value)) / (n_surrogates + 1)
     return {
         'value': value,
