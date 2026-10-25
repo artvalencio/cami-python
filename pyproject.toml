@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cami"
+version = "1.403"
+description = "Causality toolbox for Python"
+readme = "README.md"
+license = {text = "GPL-3.0-or-later"}
+authors = [{name = "Arthur Valencio"}, {name = "Norma Valencio"}, {name = "Murilo S. Baptista"}]
+requires-python = ">=3.8"
+dependencies = ["numpy", "pandas", "scipy", "matplotlib"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Operating System :: OS Independent",
+]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[project.urls]
+Homepage = "https://github.com/artvalencio/cami-python"
+
+[tool.setuptools]
+packages = ["cami"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+markers = ["slow: performance tests"]
