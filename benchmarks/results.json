@@ -17,6 +17,12 @@
    "time_ms": 1054.24
   }
  },
+ "A6": {
+  "auto tau slow sine (N=2e4)": {
+   "peak_mb": 3.98,
+   "time_ms": 11.99
+  }
+ },
  "A7": {
   "total_correlation 4 vars L=2": {
    "peak_mb": 137.0,

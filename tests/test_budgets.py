@@ -43,3 +43,9 @@ def test_total_correlation_time(big):
     x, y = big
     four = np.c_[x, y, np.roll(x, 3), np.roll(y, 5)]
     assert best_time(lambda: cami.total_correlation(four, symbolic_length=2), repeats=1) < 0.5
+
+
+def test_auto_tau_time():
+    from cami import _core
+    slow_sine = np.sin(np.arange(20000) / 2000.0)
+    assert best_time(lambda: _core.first_zero_autocorrelation(slow_sine)) < 0.03

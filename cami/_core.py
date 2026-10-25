@@ -5,6 +5,7 @@ symbolic-word indexing and the plug-in estimators computed from
 probability tables.
 '''
 import logging
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -159,15 +160,53 @@ def as_trials(x):
     return list(x.T)
 
 
-def first_zero_autocorrelation(data):
-    '''Smallest lag at which the autocorrelation crosses zero (1 if it never does).'''
+def _segment_correlation(data, lag):
+    with np.errstate(all='ignore'), warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        return np.corrcoef(data[:-lag], data[lag:])[0, 1]
+
+
+def first_zero_autocorrelation(data, direct_lags=8):
+    '''Smallest lag at which the autocorrelation crosses zero (1 if it never does).
+
+    The autocorrelation at lag i is corrcoef(data[:-i], data[i:]) (each segment with
+    its own mean and variance). The first lags are computed directly; the rest come
+    from one FFT and cumulative sums, in O(N log N). Lags whose sign is uncertain at
+    floating-point precision are recomputed directly, so the result is the same as
+    computing every lag with np.corrcoef.
+    '''
+    data = np.asarray(data, dtype=float)
+    n = len(data)
     old_corr_val = 1
-    for i in range(1, len(data)):
-        new_corr_val = np.corrcoef(data[:-i], data[i:])[0, 1]
+    for i in range(1, min(direct_lags + 1, n)):
+        new_corr_val = _segment_correlation(data, i)
         if old_corr_val > 0 and new_corr_val <= 0:
             return i
         old_corr_val = new_corr_val
-    return 1
+    if n <= direct_lags + 1:
+        return 1
+    d = data - data.mean()  # correlations are shift-invariant; centring improves precision
+    lags = np.arange(direct_lags + 1, n)
+    m = (n - lags).astype(float)
+    csum = np.concatenate(([0.0], np.cumsum(d)))
+    csq = np.concatenate(([0.0], np.cumsum(d * d)))
+    size = 1 << int(np.ceil(np.log2(2 * n - 1)))
+    spectrum = np.fft.rfft(d, size)
+    cross = np.fft.irfft(spectrum * np.conj(spectrum), size)[lags]
+    sum_a, sum_b = csum[n - lags], csum[n] - csum[lags]
+    var_a = csq[n - lags] - sum_a ** 2 / m
+    var_b = csq[n] - csq[lags] - sum_b ** 2 / m
+    with np.errstate(all='ignore'):
+        r = (cross - sum_a * sum_b / m) / np.sqrt(var_a * var_b)
+    # recompute where rounding could change the sign or the segment is (nearly) constant
+    scale = csq[n] / m
+    uncertain = ~np.isfinite(r) | (np.abs(r) < 1e-9 * n / m) | (var_a <= 1e-9 * scale * m) | (var_b <= 1e-9 * scale * m)
+    for k in np.flatnonzero(uncertain):
+        r[k] = _segment_correlation(data, lags[k])
+    previous = np.concatenate(([old_corr_val], r[:-1]))
+    with np.errstate(invalid='ignore'):
+        crossing = np.flatnonzero((previous > 0) & (r <= 0))
+    return int(lags[crossing[0]]) if crossing.size else 1
 
 
 def resolve_tau(tau, *series):
