@@ -120,20 +120,41 @@ def encode(data, divisions):
     return np.searchsorted(divisions, data, side='right')
 
 
-def symbolize(data, symbolic_type, n_symbols):
-    '''Encodes data (or its 1st/2nd difference) with automatically placed divisions.'''
+def transform(data, symbolic_type):
+    '''Returns the data to encode (the series or its 1st/2nd difference) and the division placement.'''
     try:
         order, placement = SYMBOLIC_TYPES[symbolic_type]
     except (KeyError, TypeError):
         raise ValueError('Error: Unacceptable argument of symbolic type. See help on function.') from None
-    data = np.diff(data, order) if order else np.asarray(data)
+    return (np.diff(data, order) if order else np.asarray(data)), placement
+
+
+def place_divisions(data, placement, n_symbols):
     if placement == 'width':
         lo, hi = data.min(), data.max()
-        divisions = [lo + i * (hi - lo) / n_symbols for i in range(1, n_symbols)]
-    else:
-        ordered = np.sort(data)
-        divisions = [ordered[int(i * len(data) / n_symbols)] for i in range(1, n_symbols)]
-    return encode(data, divisions)
+        return [lo + i * (hi - lo) / n_symbols for i in range(1, n_symbols)]
+    ordered = np.sort(data)
+    return [ordered[int(i * len(data) / n_symbols)] for i in range(1, n_symbols)]
+
+
+def symbolize(data, symbolic_type, n_symbols):
+    '''Encodes data (or its 1st/2nd difference) with automatically placed divisions.'''
+    data, placement = transform(data, symbolic_type)
+    return encode(data, place_divisions(data, placement, n_symbols))
+
+
+def as_trials(x):
+    '''Splits input into a list of 1-D trials: columns of a 2-D array, or items of a list of series.'''
+    if isinstance(x, pd.DataFrame):
+        x = x.to_numpy()
+    if isinstance(x, (list, tuple)) and len(x) > 0 and np.ndim(x[0]) == 1:
+        return [np.asarray(t) for t in x]
+    x = np.asarray(x)
+    if x.ndim == 1:
+        return [x]
+    if x.ndim != 2:
+        raise ValueError('Error: trials must be given as a 2-D array (columns are trials) or a list of series')
+    return list(x.T)
 
 
 def first_zero_autocorrelation(data):
@@ -314,14 +335,14 @@ def cami_from_probs(p_xp, p_ypf, p_xypf, log):
     return divergence(p_xypf, p_xp[:, None, None] * p_ypf[None, :, :], log)
 
 
-def pair_words(Sx, Sy, lengths, tau, n_symbols):
+def pair_words(Sx, Sy, lengths, tau, n_symbols, allow_empty=False):
     '''Past-x, past-y and future-y word codes at every time where all three exist.'''
     lx, lyp, lyf = lengths
     a = past_codes(Sx, lx, tau, n_symbols)
     b = past_codes(Sy, lyp, tau, n_symbols)
     c = future_codes(Sy, lyf, tau, n_symbols)
     valid = (a >= 0) & (b >= 0) & (c >= 0)
-    if not valid.any():
+    if not valid.any() and not allow_empty:
         raise ValueError('Error: time-series too short for the chosen symbolic_length and tau')
     return (a[valid], n_symbols ** lx), (b[valid], n_symbols ** lyp), (c[valid], n_symbols ** lyf)
 
