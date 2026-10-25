@@ -224,13 +224,15 @@ def future_codes(S, length, tau, n_symbols):
 def histogram(codes, size):
     '''Normalized histogram of the non-negative codes.'''
     counts = np.bincount(codes[codes >= 0], minlength=size).astype(float)
+    if counts.sum() == 0:
+        raise ValueError('Error: time-series too short for the chosen symbolic_length and tau')
     return counts / counts.sum()
 
 
 def entropy_from_probs(p, log):
     p = np.asarray(p).ravel()
     p = p[p > 0]
-    return float(-np.sum(p * log(p)))
+    return float(-np.sum(p * log(p))) + 0.0  # + 0.0 avoids returning -0.0
 
 
 def divergence(p_joint, p_product, log):
