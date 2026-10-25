@@ -32,3 +32,19 @@ def test_row_entropy_matches_lexicographic_row_counting(n_vars, size):
     __, counts = np.unique(rows, axis=0, return_counts=True)
     expected = _core.entropy_from_probs(counts / counts.sum(), LOG)
     assert _core.entropy_of_rows(rows, LOG, size) == expected
+
+
+@pytest.mark.parametrize('length', [30, 31, 32, 62])
+def test_word_codes_at_integer_size_boundaries(length):
+    # n_symbols**length crosses 2**31 (int32 -> int64 codes) at length 31
+    rng = np.random.default_rng(length)
+    S = rng.integers(0, 2, 200).astype(np.uint8)
+    codes = _core.past_window(S, length, 1, 2, length, len(S))
+    expected = [sum(int(S[n - length + k]) << k for k in range(length)) for n in range(length, len(S))]
+    assert codes.tolist() == expected
+    assert codes.dtype == (np.int32 if length < 31 else np.int64)
+
+
+def test_too_many_words_are_rejected():
+    with pytest.raises(ValueError, match='too large'):
+        _core.past_window(np.zeros(100, dtype=np.uint8), 64, 1, 2, 64, 100)
