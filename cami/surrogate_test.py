@@ -1,4 +1,4 @@
-def surrogate_test(x,y,measure='cami',n_surrogates=100,method='circular',alpha=0.05,seed=None,**kwargs):
+def surrogate_test(x,y,measure='cami',n_surrogates=100,method='circular',alpha=0.05,seed=None,n_jobs=1,_fast=True,**kwargs):
     ''' Tests whether an information measure between x and y is larger
         than expected by chance, by recomputing it on surrogate data in
         which the relationship between x and y has been destroyed.
@@ -25,6 +25,9 @@ def surrogate_test(x,y,measure='cami',n_surrogates=100,method='circular',alpha=0
         Significance level. Default: 0.05.
     seed: int, None, optional
         Seed of the random generator, for reproducible results.
+    n_jobs: int, optional
+        Number of threads computing surrogates (-1: one per CPU). The
+        results do not depend on it. Default: 1.
     **kwargs:
         Passed to the measure (e.g. n_symbols, symbolic_length, tau).
 
@@ -66,17 +69,56 @@ def surrogate_test(x,y,measure='cami',n_surrogates=100,method='circular',alpha=0
     if not 0 < alpha < 1:
         raise ValueError('Error: alpha must be between 0 and 1')
     n_surrogates = _core.as_int(n_surrogates, 'n_surrogates')
+    n_jobs = _core.as_int(n_jobs, 'n_jobs')
     x, y = _core.clean_pair(x, y)
-    rng = np.random.default_rng(seed)
-    margin = max(1, len(x) // 10)
+    n = len(x)
+    margin = max(1, n // 10)
+    #one independent generator per surrogate: results do not depend on n_jobs
+    generators = [np.random.default_rng(s) for s in np.random.SeedSequence(seed).spawn(n_surrogates)]
 
-    def surrogate():
+    def reorder(series, rng):
         if method == 'shuffle':
-            return rng.permutation(x)
-        return np.roll(x, rng.integers(margin, len(x) - margin + 1))
+            return series[rng.permutation(n)]
+        return np.roll(series, rng.integers(margin, n - margin + 1))
 
     value = func(x, y, **kwargs)
-    surrogates = np.array([func(surrogate(), y, **kwargs) for __ in range(n_surrogates)])
+    #fast path: shuffling/rolling x then encoding it with divisions placed on its values
+    #gives the shuffled/rolled symbols, so surrogates reuse the encoding and y's words
+    fast = (_fast and not callable(measure) and kwargs.get('delay', 0) == 0 and kwargs.get('tau', 1) is not None
+            and (kwargs.get('x_divs') is not None or kwargs.get('symbolic_type', 'equal-divs') in ('equal-divs', 'equal-points')))
+    if fast:
+        params = dict(kwargs)
+        log = _core.log_function(params.pop('units', 'bits'))
+        lengths = _core.parse_symbolic_length(params.pop('symbolic_length', 1))
+        prepared = _core.Prepared(x, y, params.pop('x_divs', None), params.pop('y_divs', None),
+                                  params.pop('symbolic_type', 'equal-divs'), params.pop('n_symbols', 2),
+                                  params.pop('tau', 1), params.pop('delay', 0))
+        if params:
+            raise TypeError('Error: unexpected parameters %s' % sorted(params))
+        #y's words, and their part of the joint key, are the same for every surrogate
+        __, past_y, future_y = prepared.words('xy', lengths)
+        y_key = _core.effect_key(past_y, future_y)
+        start, stop = _core.pair_window(n, lengths, prepared.tau)
+
+        def one(rng):
+            surrogate = prepared.with_x_symbols(reorder(prepared.symbols['x'], rng))
+            past_x = (_core.past_window(surrogate.symbols['x'], lengths[0], prepared.tau, prepared.n_symbols, start, stop),
+                      prepared.n_symbols ** lengths[0])
+            cami_xy, mi, te = _core.measures_from_entropies(
+                _core.pair_entropies(past_x, past_y, future_y, log, bc_key=y_key))
+            if measure == 'directionality':
+                return cami_xy - _core.measures_from_entropies(surrogate.entropies('yx', lengths, log))[0]
+            return {'cami': cami_xy, 'mutual_info': mi, 'transfer_entropy': te}[measure]
+    else:
+        def one(rng):
+            return func(reorder(x, rng), y, **kwargs)
+
+    if n_jobs == 1:
+        surrogates = np.array([one(rng) for rng in generators])
+    else:
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=n_jobs if n_jobs > 0 else None) as pool:
+            surrogates = np.array(list(pool.map(one, generators)))
     p_value = (1 + np.sum(surrogates >= value)) / (n_surrogates + 1)
     return {
         'value': value,

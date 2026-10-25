@@ -60,3 +60,30 @@ def test_invalid_arguments_are_rejected(coupled):
         cami.surrogate_test(*coupled, method='bootstrap')
     with pytest.raises(ValueError, match='alpha'):
         cami.surrogate_test(*coupled, alpha=1.5)
+
+
+FAST_CONFIGS = [dict(), dict(symbolic_type='equal-points', n_symbols=3), dict(x_divs=[0.4], y_divs=[0.6]),
+                dict(symbolic_length=(2, 1, 1), tau=2)]
+
+
+@pytest.mark.parametrize('measure', ['cami', 'mutual_info', 'transfer_entropy', 'directionality'])
+@pytest.mark.parametrize('method', ['circular', 'shuffle'])
+@pytest.mark.parametrize('config', range(len(FAST_CONFIGS)))
+def test_fast_path_matches_general_path(coupled, measure, method, config):
+    kw = dict(measure=measure, n_surrogates=6, method=method, seed=3, **FAST_CONFIGS[config])
+    fast = cami.surrogate_test(*coupled, **kw)
+    general = cami.surrogate_test(*coupled, _fast=False, **kw)
+    np.testing.assert_array_equal(fast['surrogates'], general['surrogates'])
+    assert fast['value'] == general['value']
+
+
+@pytest.mark.parametrize('kw', [dict(symbolic_type='equal-growth'), dict(delay=1), dict(tau=None)])
+def test_cases_without_fast_path_still_work(coupled, kw):
+    res = cami.surrogate_test(*coupled, n_surrogates=4, seed=0, **kw)
+    np.testing.assert_array_equal(res['surrogates'], cami.surrogate_test(*coupled, n_surrogates=4, seed=0, _fast=False, **kw)['surrogates'])
+
+
+def test_parallel_workers_do_not_change_results(coupled):
+    serial = cami.surrogate_test(*coupled, n_surrogates=12, seed=9)
+    parallel = cami.surrogate_test(*coupled, n_surrogates=12, seed=9, n_jobs=3)
+    np.testing.assert_array_equal(serial['surrogates'], parallel['surrogates'])

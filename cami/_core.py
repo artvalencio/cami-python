@@ -490,23 +490,35 @@ def _group_counts(sub_keys, counts, is_sorted):
     return np.bincount(inverse, weights=counts)
 
 
-def pair_entropies(a, b, c, log, method=None):
+def effect_key(b, c):
+    '''Joint key of past and future effect words, b*nc + c (int64).'''
+    (cb, __), (cc, nc) = b, c
+    key = np.multiply(cb, nc, dtype=np.int64)
+    key += cc
+    return key
+
+
+def pair_entropies(a, b, c, log, method=None, bc_key=None):
     '''Entropies H(a), H(b), H(a,b), H(b,c), H(a,b,c) from one joint count.
 
     a, b, c are (codes, alphabet size) pairs. The marginal counts are derived from
     the joint counts, in the same order as counting them separately, so the
-    entropies are identical to separate entropy_of_codes calls.
+    entropies are identical to separate entropy_of_codes calls. bc_key, if given,
+    is effect_key(b, c), reused when only a changes (surrogates).
     '''
     (ca, na), (cb, nb), (cc, nc) = a, b, c
     size = na * nb * nc
     if size >= 2 ** 62:
         return {'a': entropy_of_codes(log, a), 'b': entropy_of_codes(log, b), 'ab': entropy_of_codes(log, a, b),
                 'bc': entropy_of_codes(log, b, c), 'abc': entropy_of_codes(log, a, b, c)}
-    key = np.array(ca, dtype=np.int64)
-    key *= nb
-    key += cb
-    key *= nc
-    key += cc
+    if bc_key is None:  # built in place, without a second int64 array
+        key = np.multiply(ca, nb, dtype=np.int64)
+        key += cb
+        key *= nc
+        key += cc
+    else:
+        key = np.multiply(ca, nb * nc, dtype=np.int64)
+        key += bc_key
 
     def entropy(counts):
         counts = counts[counts > 0]
@@ -549,6 +561,14 @@ class Prepared:
         self.symbols = {'x': Sx, 'y': Sy}
         self.n = len(Sx)
         self._cache = {}
+
+    def with_x_symbols(self, Sx):
+        '''A copy using other symbols for x (same length), sharing y's symbols and cached codes.'''
+        other = object.__new__(Prepared)
+        other.__dict__.update(self.__dict__)
+        other.symbols = {'x': Sx, 'y': self.symbols['y']}
+        other._cache = {key: value for key, value in self._cache.items() if key[1] == 'y'}
+        return other
 
     def _codes(self, kind, var, length):
         cached = self._cache.get((kind, var))
