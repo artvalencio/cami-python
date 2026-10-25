@@ -59,115 +59,14 @@ def symbolic_encoding(x,y,x_divs=None,y_divs=None,symbolic_type='equal-divs',n_s
     Sx,Sy = symbolic_encoding(x,y,symbolic_type='equal-points',n_symbols=10)
     Sx,Sy = symbolic_encoding(x,y,x_divs=[0.25,0.75],y_divs=[0.3,0.6])
     '''
-    #imports and time-series type convesion
-    import numpy as np
-    import pandas as pd
-    if type(x)==pd.Series:
-        x=x.values
-    if type(y)==pd.Series:
-        y=y.values
-    #getting time-series length (checking consistency)
-    if len(x)!=len(y):
+    from . import _core
+    x, y = _core.to_float_array(x), _core.to_float_array(y)
+    if len(x) != len(y):
         raise ValueError('Error: Length of x and y must be equal!')
-    tslen=len(x)
-    
-    #generating partitions (checking consistency)
-    if type(x_divs)==int or type(x_divs)==float:
-        x_divs=[x_divs]
-        xpart,ypart=x_divs,y_divs
-    if type(y_divs)==int or type(y_divs)==float:
-        y_divs=[y_divs]
-        xpart,ypart=x_divs,y_divs
-    if (x_divs is None) and (y_divs is None):
-        if symbolic_type=='equal-divs':
-            xmin,xmax,ymin,ymax = x.min(),x.max(),y.min(),y.max()
-            xpart,ypart=[],[]
-            for i in range(1,n_symbols):
-                xpart.append(xmin+i*(xmax-xmin)/n_symbols)
-                ypart.append(ymin+i*(ymax-ymin)/n_symbols)
-        elif symbolic_type=='equal-points':
-            xsort,ysort = np.sort(x),np.sort(y)
-            xpart,ypart = [],[]
-            for i in range(1,n_symbols):
-                xpart.append(xsort[int(i*tslen/n_symbols)])
-                ypart.append(ysort[int(i*tslen/n_symbols)])
-        elif symbolic_type=='equal-growth':
-            xdiff,ydiff = np.diff(x),np.diff(y)
-            xmin,xmax,ymin,ymax = min(xdiff),max(xdiff),min(ydiff),max(ydiff)
-            xpart,ypart=[],[]
-            for i in range(1,n_symbols):
-                xpart.append(xmin+i*(xmax-xmin)/n_symbols)
-                ypart.append(ymin+i*(ymax-ymin)/n_symbols)
-        elif symbolic_type=='equal-growth-points':
-            xdiffsort,ydiffsort = np.sort(np.diff(x)),np.sort(np.diff(y))
-            xpart,ypart = [],[]
-            for i in range(1,n_symbols):
-                xpart.append(xdiffsort[int(i*(tslen-1)/n_symbols)])
-                ypart.append(ydiffsort[int(i*(tslen-1)/n_symbols)])
-        elif symbolic_type=='equal-concavity':
-            xdiff2,ydiff2 = np.diff(np.diff(x)),np.diff(np.diff(y))
-            xmin,xmax,ymin,ymax = min(xdiff2),max(xdiff2),min(ydiff2),max(ydiff2)
-            xpart,ypart=[],[]
-            for i in range(1,n_symbols):
-                xpart.append(xmin+i*(xmax-xmin)/n_symbols)
-                ypart.append(ymin+i*(ymax-ymin)/n_symbols)
-        elif symbolic_type=='equal-concavity-points':
-            xdiff2sort,ydiff2sort = np.sort(np.diff(np.diff(x))),np.sort(np.diff(np.diff(y)))
-            xpart,ypart = [],[]
-            for i in range(1,n_symbols):
-                xpart.append(xdiff2sort[int(i*(tslen-2)/n_symbols)])
-                ypart.append(ydiff2sort[int(i*(tslen-2)/n_symbols)])
-        else:
-            raise ValueError('Error: Unacceptable argument of symbolic type. See help on function.')
-    elif ((x_divs is None) and (y_divs is not None)) or ((x_divs is not None) and (y_divs is None)):
-        raise ValueError("Inconsistent use of partition divisions: x_divs and y_divs must both be None or both be a float, list or tuple of same length")
-    elif len(x_divs)!=len(y_divs):
-        raise ValueError("x_divs and y_divs must have same length")
-    else:
-        def convert_to_list(a):
-            if type(a)==tuple:
-                a=list(a)
-            elif type(a)==np.ndarray:
-                a=a.tolist()
-            elif type(a)==pd.Series:
-                a=a.to_list()
-            elif type(a)!=list:
-                raise ValueError("partition data type not supported. x_divs and y_divs must both be None or both be a float, list or tuple of same length")
-            return a
-        xpart,ypart=convert_to_list(x_divs),convert_to_list(y_divs)
-                
-    #Generating the symbolic sequences
-    def getsequence(x,y,xpart,ypart,tslen,partlen):
-        Sx=np.ones(tslen)*-1
-        Sy=np.ones(tslen)*-1
-        for n in range(tslen): #assign data points to partition symbols in x
-            for i in range(partlen):
-                if x[n]<xpart[i]:
-                    Sx[n]=i
-                    break
-            if Sx[n]==-1:
-                Sx[n]=partlen
-        for n in range(tslen): #assign data points to partition symbols in y
-            for i in range(partlen):
-                if y[n]<ypart[i]:
-                    Sy[n]=i
-                    break
-            if Sy[n]==-1:
-                Sy[n]=partlen
-        return Sx,Sy
+    x_divs, y_divs = _core.resolve_pair_divisions(x_divs, y_divs)
     if x_divs is None:
-        if symbolic_type=='equal-divs' or symbolic_type=='equal-points':
-            Sx,Sy = getsequence(x,y,xpart,ypart,tslen,n_symbols-1)
-        elif symbolic_type=='equal-growth':
-            Sx,Sy = getsequence(xdiff,ydiff,xpart,ypart,tslen-1,n_symbols-1)
-        elif symbolic_type=='equal-concavity':
-            Sx,Sy = getsequence(np.diff(x),np.diff(y),xpart,ypart,tslen-1,n_symbols-1)
-        elif symbolic_type=='equal-concavity':
-            Sx,Sy = getsequence(xdiff2,ydiff2,xpart,ypart,tslen-2,n_symbols-1)
-        elif symbolic_type=='equal-concavity-points':
-            Sx,Sy = getsequence(np.diff(np.diff(x)),np.diff(np.diff(y)),xpart,ypart,tslen-2,n_symbols-1)
+        n_symbols = _core.as_int(n_symbols, 'n_symbols')
+        Sx, Sy = _core.symbolize(x, symbolic_type, n_symbols), _core.symbolize(y, symbolic_type, n_symbols)
     else:
-        Sx,Sy = getsequence(x,y,xpart,ypart,tslen,len(xpart))
-
-    #Returning result
-    return Sx,Sy
+        Sx, Sy = _core.encode(x, x_divs), _core.encode(y, y_divs)
+    return Sx.astype(float), Sy.astype(float)

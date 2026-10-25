@@ -100,6 +100,38 @@ def resolve_pair_divisions(x_divs, y_divs):
     return x_divs, y_divs
 
 
+# symbolic type -> (order of the difference encoded, how divisions are placed)
+SYMBOLIC_TYPES = {
+    'equal-divs': (0, 'width'), 'equal-points': (0, 'points'),
+    'equal-growth': (1, 'width'), 'equal-growth-points': (1, 'points'),
+    'equal-concavity': (2, 'width'), 'equal-concavity-points': (2, 'points'),
+}
+
+
+def encode(data, divisions):
+    '''Symbol i is given to values in [divisions[i-1], divisions[i]).'''
+    divisions = np.asarray(divisions, dtype=float)
+    if np.any(np.diff(divisions) < 0):
+        raise ValueError('Error: partition divisions must be in increasing order')
+    return np.searchsorted(divisions, data, side='right')
+
+
+def symbolize(data, symbolic_type, n_symbols):
+    '''Encodes data (or its 1st/2nd difference) with automatically placed divisions.'''
+    try:
+        order, placement = SYMBOLIC_TYPES[symbolic_type]
+    except (KeyError, TypeError):
+        raise ValueError('Error: Unacceptable argument of symbolic type. See help on function.') from None
+    data = np.diff(data, order) if order else np.asarray(data)
+    if placement == 'width':
+        lo, hi = data.min(), data.max()
+        divisions = [lo + i * (hi - lo) / n_symbols for i in range(1, n_symbols)]
+    else:
+        ordered = np.sort(data)
+        divisions = [ordered[int(i * len(data) / n_symbols)] for i in range(1, n_symbols)]
+    return encode(data, divisions)
+
+
 def first_zero_autocorrelation(data):
     '''Smallest lag at which the autocorrelation crosses zero (1 if it never does).'''
     old_corr_val = 1
