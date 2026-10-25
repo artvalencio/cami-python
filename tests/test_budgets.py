@@ -54,3 +54,7 @@ def test_auto_tau_time():
 def test_cami_memory(big):
     # input: two float64 series of 8 MB each
     assert peak_mb(lambda: cami.cami(*big, symbolic_length=3, n_symbols=4, two_sided=True)) < 30
+
+
+def test_cami_rate_time(big):
+    assert best_time(lambda: cami.cami_rate(*big), repeats=2) < 0.2

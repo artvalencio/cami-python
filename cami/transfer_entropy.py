@@ -111,14 +111,9 @@ def transfer_entropy(x,y,x_divs=None,y_divs=None,symbolic_type='equal-divs',n_sy
     '''
     from . import _core
     log = _core.log_function(units)
-    x, y, Sx, Sy, n_symbols, tau = _core.prepare_pair(x, y, x_divs, y_divs, symbolic_type, n_symbols, tau, delay)
+    prepared = _core.Prepared(x, y, x_divs, y_divs, symbolic_type, n_symbols, tau, delay)
     lengths = _core.parse_symbolic_length(symbolic_length)
-
-    def te(Sa, Sb):
-        a, b, c = _core.pair_words(Sa, Sb, lengths, tau, n_symbols)
-        return _core.cami_from_words(a, b, c, log) - _core.mutual_info_from_words(a, b, log)
-
-    te_xy = te(Sx, Sy)
+    te_xy = _core.measures_from_entropies(prepared.entropies('xy', lengths, log))[2]
     if not two_sided:
         return te_xy
-    return te_xy, te(Sy, Sx)
+    return te_xy, _core.measures_from_entropies(prepared.entropies('yx', lengths, log))[2]

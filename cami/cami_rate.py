@@ -95,16 +95,15 @@ def cami_rate(x,y,x_divs=None,y_divs=None,symbolic_type='equal-divs',n_symbols=2
     '''
     import numpy as np
     from . import _core
-    from .cami import cami
     _core.log_function(units)
     #checking if minimum L_limit is satified
     if L_limit<3:
         raise ValueError('L_limit must be equal or greater than 3')
-    x, y = _core.clean_pair(x, y)
-    x, y = _core.apply_delay(x, y, delay)
-    #calculate the measure as a function of symbolic length
-    values = np.array([cami(x, y, x_divs=x_divs, y_divs=y_divs, symbolic_type=symbolic_type, n_symbols=n_symbols,
-                          symbolic_length=L, tau=tau, units=units) for L in range(1, L_limit+1)])
+    #encode once; words of length L+1 extend those of length L
+    prepared = _core.Prepared(x, y, x_divs, y_divs, symbolic_type, n_symbols, tau, delay)
+    log = _core.log_function(units)
+    values = np.array([_core.measures_from_entropies(prepared.entropies('xy', (L, L, L), log, keep_future=True))[0]
+                       for L in range(1, L_limit+1)])
     #linear regression over the part closest to linear
     camir, idx = _core.linear_rate(values)
     if verbose:

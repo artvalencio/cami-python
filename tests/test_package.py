@@ -11,7 +11,7 @@ def test_tests_import_local_source_not_installed_copy():
 
 
 PUBLIC_API = {
-    'cami', 'cami_rate', 'directionality', 'entropy', 'get_prob', 'joint_entropy', 'multithread_causality',
+    'cami', 'cami_rate', 'directionality', 'entropy', 'get_prob', 'joint_entropy', 'measures', 'multithread_causality',
     'multivar_joint_entropy', 'mutual_info', 'mutual_info_rate', 'pointwise', 'surrogate_test',
     'symbolic_encoding', 'total_correlation', 'transfer_entropy', 'transfer_entropy_rate',
 }

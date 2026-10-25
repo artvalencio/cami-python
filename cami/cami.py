@@ -111,10 +111,9 @@ def cami(x,y,x_divs=None,y_divs=None,symbolic_type='equal-divs',n_symbols=2,symb
     '''
     from . import _core
     log = _core.log_function(units)
-    x, y, Sx, Sy, n_symbols, tau = _core.prepare_pair(x, y, x_divs, y_divs, symbolic_type, n_symbols, tau, delay)
+    prepared = _core.Prepared(x, y, x_divs, y_divs, symbolic_type, n_symbols, tau, delay)
     lengths = _core.parse_symbolic_length(symbolic_length)
-    cami_xy = _core.cami_from_words(*_core.pair_words(Sx, Sy, lengths, tau, n_symbols), log)
+    cami_xy = _core.measures_from_entropies(prepared.entropies('xy', lengths, log))[0]
     if not two_sided:
         return cami_xy
-    cami_yx = _core.cami_from_words(*_core.pair_words(Sy, Sx, lengths, tau, n_symbols), log)
-    return cami_xy, cami_yx
+    return cami_xy, _core.measures_from_entropies(prepared.entropies('yx', lengths, log))[0]

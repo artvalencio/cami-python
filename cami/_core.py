@@ -479,6 +479,133 @@ def cami_from_words(a, b, c, log):
     return entropy_of_codes(log, a) + entropy_of_codes(log, b, c) - entropy_of_codes(log, a, b, c)
 
 
+def _group_counts(sub_keys, counts, is_sorted):
+    '''Counts aggregated by sub_key, in increasing sub_key order.'''
+    if len(sub_keys) == 0:
+        return counts
+    if is_sorted:
+        starts = np.flatnonzero(np.r_[True, sub_keys[1:] != sub_keys[:-1]])
+        return np.add.reduceat(counts, starts)
+    __, inverse = np.unique(sub_keys, return_inverse=True)
+    return np.bincount(inverse, weights=counts)
+
+
+def pair_entropies(a, b, c, log, method=None):
+    '''Entropies H(a), H(b), H(a,b), H(b,c), H(a,b,c) from one joint count.
+
+    a, b, c are (codes, alphabet size) pairs. The marginal counts are derived from
+    the joint counts, in the same order as counting them separately, so the
+    entropies are identical to separate entropy_of_codes calls.
+    '''
+    (ca, na), (cb, nb), (cc, nc) = a, b, c
+    size = na * nb * nc
+    if size >= 2 ** 62:
+        return {'a': entropy_of_codes(log, a), 'b': entropy_of_codes(log, b), 'ab': entropy_of_codes(log, a, b),
+                'bc': entropy_of_codes(log, b, c), 'abc': entropy_of_codes(log, a, b, c)}
+    key = np.array(ca, dtype=np.int64)
+    key *= nb
+    key += cb
+    key *= nc
+    key += cc
+
+    def entropy(counts):
+        counts = counts[counts > 0]
+        return entropy_from_probs(counts / counts.sum(), log)
+
+    method = method or counting_method(size, len(key))
+    if method == 'dense':
+        table = np.bincount(key, minlength=size).reshape(na, nb, nc)
+        ab = table.sum(axis=2)
+        return {'a': entropy(ab.sum(axis=1)), 'b': entropy(ab.sum(axis=0)), 'ab': entropy(ab.ravel()),
+                'bc': entropy(table.sum(axis=0).ravel()), 'abc': entropy(table.ravel())}
+    keys, counts = np.unique(key, return_counts=True)
+    del key
+    ab_keys = keys // nc
+    bc_keys = keys % (nb * nc)
+    return {'a': entropy(_group_counts(ab_keys // nb, counts, True)),
+            'b': entropy(_group_counts(bc_keys // nc, counts, False)),
+            'ab': entropy(_group_counts(ab_keys, counts, True)),
+            'bc': entropy(_group_counts(bc_keys, counts, False)),
+            'abc': entropy(counts)}
+
+
+def measures_from_entropies(h):
+    '''(CaMI, mutual information, transfer entropy) from pair_entropies output.'''
+    cami = h['a'] + h['bc'] - h['abc']
+    mutual_info = h['a'] + h['b'] - h['ab']
+    return cami, mutual_info, cami - mutual_info
+
+
+class Prepared:
+    '''A cleaned, delayed and encoded pair of series with cached symbolic word codes.
+
+    Word codes are extended one symbol at a time when longer words are requested,
+    and only the longest computed length is kept per (kind, variable).
+    '''
+
+    def __init__(self, x, y, x_divs, y_divs, symbolic_type, n_symbols, tau, delay):
+        self.x, self.y, Sx, Sy, self.n_symbols, self.tau = prepare_pair(
+            x, y, x_divs, y_divs, symbolic_type, n_symbols, tau, delay)
+        self.symbols = {'x': Sx, 'y': Sy}
+        self.n = len(Sx)
+        self._cache = {}
+
+    def _codes(self, kind, var, length):
+        cached = self._cache.get((kind, var))
+        if cached is not None and cached[0] == length:
+            return cached[1]
+        S, tau, ns, n = self.symbols[var], self.tau, self.n_symbols, self.n
+        if kind == 'past':
+            start = tau * length
+            if start >= n:
+                codes = np.zeros(0, dtype=np.int32)
+            elif cached is not None and cached[0] == length - 1:
+                codes = cached[1][tau:].astype(code_dtype(ns ** length))
+                codes *= ns
+                codes += S[:n - start]
+            else:
+                codes = past_window(S, length, tau, ns, start, n)
+        else:
+            stop = n - tau * (length - 1)
+            if stop <= 0:
+                codes = np.zeros(0, dtype=np.int32)
+            elif cached is not None and cached[0] == length - 1:
+                codes = cached[1][:stop].astype(code_dtype(ns ** length))
+                codes += S[tau * (length - 1):].astype(codes.dtype) * codes.dtype.type(ns ** (length - 1))
+            else:
+                codes = future_window(S, length, tau, ns, 0, stop)
+        self._cache[(kind, var)] = (length, codes)
+        return codes
+
+    def past(self, var, length):
+        '''Past word codes of var for the times n in [tau*length, n).'''
+        return self._codes('past', var, length)
+
+    def future(self, var, length):
+        '''Future word codes of var for the times n in [0, n - tau*(length-1)).'''
+        return self._codes('future', var, length)
+
+    def words(self, direction, lengths):
+        '''(codes, size) of past cause, past effect and future effect over their common window.'''
+        cause, effect = ('x', 'y') if direction == 'xy' else ('y', 'x')
+        lx, lyp, lyf = lengths
+        start, stop = pair_window(self.n, lengths, self.tau)
+        if stop <= start:
+            raise ValueError('Error: time-series too short for the chosen symbolic_length and tau')
+        tau, ns = self.tau, self.n_symbols
+        return ((self.past(cause, lx)[start - tau * lx:stop - tau * lx], ns ** lx),
+                (self.past(effect, lyp)[start - tau * lyp:stop - tau * lyp], ns ** lyp),
+                (self.future(effect, lyf)[start:stop], ns ** lyf))
+
+    def entropies(self, direction, lengths, log, keep_future=False):
+        '''pair_entropies of the words; future codes are dropped afterwards unless they
+        will be extended (keep_future), as each direction uses its own.'''
+        result = pair_entropies(*self.words(direction, lengths), log)
+        if not keep_future:
+            self._cache.pop(('future', 'y' if direction == 'xy' else 'x'), None)
+        return result
+
+
 def linear_rate(values):
     '''Slope of values vs. L over the 3-point window closest to linear.
 

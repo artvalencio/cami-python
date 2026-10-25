@@ -7,6 +7,7 @@ from .directionality import directionality
 from .entropy import entropy
 from .get_prob import get_prob
 from .joint_entropy import joint_entropy
+from .measures import measures
 from .multithread_causality import multithread_causality
 from .multivar_joint_entropy import multivar_joint_entropy
 from .mutual_info import mutual_info
@@ -19,7 +20,7 @@ from .transfer_entropy import transfer_entropy
 from .transfer_entropy_rate import transfer_entropy_rate
 
 __all__ = [
-    'cami', 'cami_rate', 'directionality', 'entropy', 'get_prob', 'joint_entropy', 'multithread_causality',
+    'cami', 'cami_rate', 'directionality', 'entropy', 'get_prob', 'joint_entropy', 'measures', 'multithread_causality',
     'multivar_joint_entropy', 'mutual_info', 'mutual_info_rate', 'pointwise', 'surrogate_test',
     'symbolic_encoding', 'total_correlation', 'transfer_entropy', 'transfer_entropy_rate',
 ]
