@@ -272,13 +272,12 @@ def past_codes(S, length, tau, n_symbols):
 def future_codes(S, length, tau, n_symbols):
     '''Index of the symbolic word formed by S[n], S[n+tau], ..., S[n+tau*(length-1)].
 
-    Entries without a complete word are -1. The last word starts at n = len(S)-tau*length-1,
-    mirroring the original implementation.
+    Entries without a complete word are -1.
     '''
     S = np.asarray(S, dtype=np.int64)
     n = len(S)
     codes = np.full(n, -1, dtype=np.int64)
-    stop = n - tau * length
+    stop = n - tau * (length - 1)
     if stop > 0:
         acc = np.zeros(stop, dtype=np.int64)
         for k in range(length):
