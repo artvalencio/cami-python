@@ -65,3 +65,16 @@ def test_surrogate_test_time():
     x = rng.random(10**5)
     y = 0.6 * np.roll(x, 1) + 0.4 * rng.random(10**5)
     assert best_time(lambda: cami.surrogate_test(x, y, n_surrogates=99, seed=0), repeats=2) < 0.12
+
+
+def test_pointwise_time_and_memory(big):
+    f = lambda: cami.pointwise(*big, symbolic_length=3, n_symbols=4, two_sided=True, make_plot=False)
+    assert best_time(f, repeats=2) < 0.3
+    assert peak_mb(f) < 80  # six float64 output series alone are 48 MB
+
+
+def test_pointwise_large_alphabet_needs_no_dense_tables():
+    rng = np.random.default_rng(1)
+    x = rng.random(20000)
+    # dense tables would need 10**12 cells
+    assert peak_mb(lambda: cami.pointwise(x, np.roll(x, 1), n_symbols=10, symbolic_length=4, make_plot=False)) < 50

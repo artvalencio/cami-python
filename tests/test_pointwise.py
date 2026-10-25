@@ -60,3 +60,20 @@ def test_save_true_writes_the_figure(noisy_pair, tmp_path, monkeypatch):
     cami.pointwise(*noisy_pair, make_plot=True, save=True)
     plt.close('all')
     assert os.path.exists(tmp_path / 'fig.jpg')
+
+
+def test_float32_output(noisy_pair):
+    out64 = cami.pointwise(*noisy_pair, method='raw', make_plot=False)
+    out32 = cami.pointwise(*noisy_pair, method='raw', make_plot=False, dtype=np.float32)
+    assert all(a.dtype == np.float32 for a in out32)
+    np.testing.assert_allclose(out32[1], out64[1], rtol=1e-6, equal_nan=True)
+
+
+@pytest.mark.parametrize('method', ['raw', 'normalized'])
+def test_sparse_counting_gives_the_same_pointwise_values(noisy_pair, method, monkeypatch):
+    from cami import _core
+    dense = cami.pointwise(*noisy_pair, method=method, symbolic_length=2, two_sided=True, make_plot=False)
+    monkeypatch.setattr(_core, 'counting_method', lambda size, n: 'sparse')
+    sparse = cami.pointwise(*noisy_pair, method=method, symbolic_length=2, two_sided=True, make_plot=False)
+    for d, s in zip(dense, sparse):
+        np.testing.assert_allclose(s, d, rtol=1e-12, atol=1e-12, equal_nan=True)

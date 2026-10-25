@@ -1,5 +1,5 @@
 def pointwise(x,y,method='normalized',x_divs=None,y_divs=None,symbolic_type='equal-divs',n_symbols=2,symbolic_length=1,tau=1,delay=0,units='bits',two_sided=False,
-              make_plot=True,alpha=0.5,figsize=None,dpi=None,labelsize=None,ticksize=None,titlesize=None,save=False):
+              make_plot=True,alpha=0.5,figsize=None,dpi=None,labelsize=None,ticksize=None,titlesize=None,save=False,dtype=None):
     ''' Calculates the Pointwise information
         measures between two variables given
         their observable time-series.
@@ -102,6 +102,9 @@ def pointwise(x,y,method='normalized',x_divs=None,y_divs=None,symbolic_type='equ
         Font size for plot tick values. Default: None (matplolib standard)
     ticksize: int, None, optional
         Font size for subplot titles. Default: None (matplolib standard)
+    dtype: numpy float type, optional
+        Type of the returned series, e.g. np.float32 to halve their memory.
+        Default: None (float64).
     save: bool, 'colab', optional
         True/False: whether to save or only display plot.
         'colab': option to display and download plot when using Google Colab
@@ -148,45 +151,36 @@ def pointwise(x,y,method='normalized',x_divs=None,y_divs=None,symbolic_type='equ
     '''
     import numpy as np
     from . import _core
-    from .get_prob import get_prob
     log = _core.log_function(units)
     normalized = method not in ('raw', 'regular', 'non-normalized', 'non-normalised')
-    x, y, Sx, Sy, n_symbols, tau = _core.prepare_pair(x, y, x_divs, y_divs, symbolic_type, n_symbols, tau, delay)
-    lx, lyp, lyf = _core.parse_symbolic_length(symbolic_length)
+    prepared = _core.Prepared(x, y, x_divs, y_divs, symbolic_type, n_symbols, tau, delay)
+    x, y = prepared.x, prepared.y
+    lengths = _core.parse_symbolic_length(symbolic_length)
+    lx = lengths[0]
+    dtype = np.float64 if dtype is None else dtype
 
-    def words(Sa, Sb):
-        return (_core.past_codes(Sa, lx, tau, n_symbols), _core.past_codes(Sb, lyp, tau, n_symbols),
-                _core.future_codes(Sb, lyf, tau, n_symbols))
+    #entry i holds the value for the words around time n = i + tau*lx (i is where the past of x starts)
+    start, stop = _core.pair_window(prepared.n, lengths, prepared.tau)
+    offset = start - prepared.tau * lx
 
-    def causal_tables(Sa, Sb):
-        '''Pointwise CaMI and TE tables (direction a->b) and the global CaMI.'''
-        p_xp, p_yp, __, p_ypf, p_xyp, p_xypf, __, __, __ = get_prob(Sa, Sb, n_symbols=n_symbols, symbolic_length=(lx, lyp, lyf), tau=tau)
-        indep = p_xp[:, None, None] * p_ypf[None, :, :]
-        mask = (indep > 0) & (p_xypf > 0)
-        pcami, pte = np.zeros(p_xypf.shape), np.zeros(p_xypf.shape)
-        with np.errstate(divide='ignore', invalid='ignore'):
-            pcami[mask] = log(p_xypf / indep)[mask]
-            pte[mask] = log(p_xypf * p_yp[None, :, None] / (p_xyp[:, :, None] * p_ypf[None, :, :]))[mask]
-            total = float(np.sum(p_xypf[mask] * pcami[mask]))
-            if normalized:
-                pcami[mask] = -pcami[mask] / log(p_xypf[mask])
-                pte[mask] = -pte[mask] / log(p_xypf[mask])
-        return pcami, pte, total, (p_xp, p_yp, p_xyp)
+    def new_series():
+        return np.full(len(x), np.nan, dtype=dtype)
 
-    pcami_xy, pte_xy, cami_xy, (p_xp, p_yp, p_xyp) = causal_tables(Sx, Sy)
-    #pointwise Mutual Information
-    indep = p_xp[:, None] * p_yp[None, :]
-    mask = (indep > 0) & (p_xyp > 0)
-    pmi = np.zeros(p_xyp.shape)
-    with np.errstate(divide='ignore', invalid='ignore'):
-        pmi[mask] = log(p_xyp / indep)[mask]
-        mutual_info = float(np.sum(p_xyp[mask] * pmi[mask]))
-        if normalized:
-            pmi[mask] = -pmi[mask] / log(p_xyp[mask])
+    def fill(direction, series):
+        '''Writes the pointwise MI, CaMI and TE of each sample into series; returns global CaMI, MI.'''
+        views = tuple(None if s_ is None else s_[offset:offset + stop - start] for s_ in series)
+        entropies = _core.pointwise_values(*prepared.words(direction, lengths), log, normalized, views)
+        prepared.drop_future(direction)
+        return _core.measures_from_entropies(entropies)[:2]
+
+    point_mi, point_cami_xy, point_te_xy = new_series(), new_series(), new_series()
+    cami_xy, mutual_info = fill('xy', (point_mi, point_cami_xy, point_te_xy))
     te_xy = cami_xy - mutual_info
     if two_sided:
-        pcami_yx, pte_yx, cami_yx, (ip_xp, ip_yp, ip_xyp) = causal_tables(Sy, Sx)
-        te_yx = cami_yx - _core.mutual_info_from_probs(ip_xp, ip_yp, ip_xyp, log)
+        point_cami_yx, point_te_yx = new_series(), new_series()
+        cami_yx, mi_yx = fill('yx', (None, point_cami_yx, point_te_yx))
+        point_di = point_cami_xy - point_cami_yx
+        te_yx = cami_yx - mi_yx
 
     #log overall information measures
     summary = ['Information values:', 'Mutual Information: %s' % mutual_info,
@@ -197,25 +191,6 @@ def pointwise(x,y,method='normalized',x_divs=None,y_divs=None,symbolic_type='equ
     if two_sided:
         summary += ['Transfer Entropy Y->X: %s' % te_yx, 'Directionality Index: %s' % (cami_xy - cami_yx)]
     _core.logger.info('\n'.join(summary))
-
-    #passing the results to time-series: entry i holds the value for the
-    #words around time n = i + tau*lx, i.e. i is where the past of x starts
-    def to_series(phis, tables):
-        phi_a, phi_bp, phi_bf = phis
-        valid = (phi_a >= 0) & (phi_bp >= 0) & (phi_bf >= 0)
-        i = np.flatnonzero(valid) - tau * lx
-        a, b, c = phi_a[valid], phi_bp[valid], phi_bf[valid]
-        out = []
-        for table in tables:
-            series = np.full(len(x), np.nan)
-            series[i] = table[a, b] if table.ndim == 2 else table[a, b, c]
-            out.append(series)
-        return out
-
-    point_mi, point_cami_xy, point_te_xy = to_series(words(Sx, Sy), (pmi, pcami_xy, pte_xy))
-    if two_sided:
-        point_cami_yx, point_te_yx = to_series(words(Sy, Sx), (pcami_yx, pte_yx))
-        point_di = point_cami_xy - point_cami_yx
 
     #plotting
     if make_plot:

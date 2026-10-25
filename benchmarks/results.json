@@ -129,6 +129,12 @@
    "time_ms": 95.68
   }
  },
+ "A9": {
+  "pointwise two_sided L=3 ns=4": {
+   "peak_mb": 78.49,
+   "time_ms": 200.02
+  }
+ },
  "baseline": {
   "auto tau slow sine (N=2e4)": {
    "peak_mb": 1.6,

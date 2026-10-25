@@ -498,6 +498,89 @@ def effect_key(b, c):
     return key
 
 
+def sample_counts(key, size):
+    '''For every sample, how many samples share its key.'''
+    if counting_method(size, len(key)) == 'dense':
+        return np.bincount(key, minlength=size)[key]
+    __, inverse, counts = np.unique(key, return_inverse=True, return_counts=True)
+    return counts[inverse]
+
+
+def pointwise_values(a, b, c, log, normalized, out):
+    '''Pointwise MI, CaMI and TE of every sample (direction a -> future c).
+
+    Values are computed once per occupied word cell and gathered per sample:
+    pcami = log p(abc)/(p(a) p(bc)), pte = log p(abc) p(b)/(p(ab) p(bc)),
+    pmi = log p(ab)/(p(a) p(b)); normalized values are divided by -log p(abc)
+    (-log p(ab) for pmi). The values are written into out = (pmi, pcami, pte)
+    arrays (None to skip one). Returns pair_entropies of the same words.
+    '''
+    (ca, na), (cb, nb), (cc, nc) = a, b, c
+    total = len(ca)
+    key = np.multiply(ca, nb, dtype=np.int64)
+    key += cb
+    key *= nc
+    key += cc
+    size = na * nb * nc
+    with np.errstate(divide='ignore', invalid='ignore'):
+        if counting_method(size, total) == 'dense':
+            counts = np.bincount(key, minlength=size).reshape(na, nb, nc)
+            entropies = entropies_from_table(counts, log)
+            n_abc = counts.astype(float)
+            del counts
+            n_ab = n_abc.sum(axis=2)
+            n_bc = n_abc.sum(axis=0)
+            n_a = n_ab.sum(axis=1)
+            n_b = n_ab.sum(axis=0)
+            pcami = log(n_abc * total / (n_a[:, None, None] * n_bc[None, :, :]))
+            pte = log(n_abc * n_b[None, :, None] / (n_ab[:, :, None] * n_bc[None, :, :]))
+            pmi = log(n_ab * total / (n_a[:, None] * n_b[None, :]))
+            if normalized:
+                pcami /= -log(n_abc / total)
+                pte /= -log(n_abc / total)
+                pmi /= -log(n_ab / total)
+            pmi = np.broadcast_to(pmi[:, :, None], n_abc.shape)  # indexed by the same key
+            tables, indices = (pmi, pcami, pte), (key, key, key)
+        else:
+            entropies = pair_entropies(a, b, c, log, method='sparse')
+            keys, inverse, n_abc = np.unique(key, return_inverse=True, return_counts=True)
+            del key
+            ab_keys, bc_keys = keys // nc, keys % (nb * nc)
+            a_keys, b_keys = ab_keys // nb, bc_keys // nc
+
+            def group_count(sub_keys):  # count of each cell's marginal group, per unique cell
+                __, group, __ = np.unique(sub_keys, return_inverse=True, return_counts=True)
+                return np.bincount(group, weights=n_abc)[group]
+
+            n_abc = n_abc.astype(float)
+            n_ab, n_bc, n_a, n_b = (group_count(k) for k in (ab_keys, bc_keys, a_keys, b_keys))
+            pcami = log(n_abc * total / (n_a * n_bc))
+            pte = log(n_abc * n_b / (n_ab * n_bc))
+            pmi = log(n_ab * total / (n_a * n_b))
+            if normalized:
+                pcami /= -log(n_abc / total)
+                pte /= -log(n_abc / total)
+                pmi /= -log(n_ab / total)
+            tables, indices = (pmi, pcami, pte), (inverse,) * 3
+    for table, index, target in zip(tables, indices, out):
+        if target is not None:
+            np.take(table.astype(target.dtype).ravel(), index, out=target)
+    return entropies
+
+
+def _entropy_of_counts(counts, log):
+    counts = counts[counts > 0]
+    return entropy_from_probs(counts / counts.sum(), log)
+
+
+def entropies_from_table(table, log):
+    '''pair_entropies from a dense (na, nb, nc) table of joint counts.'''
+    ab = table.sum(axis=2)
+    return {'a': _entropy_of_counts(ab.sum(axis=1), log), 'b': _entropy_of_counts(ab.sum(axis=0), log),
+            'ab': _entropy_of_counts(ab.ravel(), log), 'bc': _entropy_of_counts(table.sum(axis=0).ravel(), log),
+            'abc': _entropy_of_counts(table.ravel(), log)}
+
+
 def pair_entropies(a, b, c, log, method=None, bc_key=None):
     '''Entropies H(a), H(b), H(a,b), H(b,c), H(a,b,c) from one joint count.
 
@@ -526,10 +609,7 @@ def pair_entropies(a, b, c, log, method=None, bc_key=None):
 
     method = method or counting_method(size, len(key))
     if method == 'dense':
-        table = np.bincount(key, minlength=size).reshape(na, nb, nc)
-        ab = table.sum(axis=2)
-        return {'a': entropy(ab.sum(axis=1)), 'b': entropy(ab.sum(axis=0)), 'ab': entropy(ab.ravel()),
-                'bc': entropy(table.sum(axis=0).ravel()), 'abc': entropy(table.ravel())}
+        return entropies_from_table(np.bincount(key, minlength=size).reshape(na, nb, nc), log)
     keys, counts = np.unique(key, return_counts=True)
     del key
     ab_keys = keys // nc
@@ -622,8 +702,12 @@ class Prepared:
         will be extended (keep_future), as each direction uses its own.'''
         result = pair_entropies(*self.words(direction, lengths), log)
         if not keep_future:
-            self._cache.pop(('future', 'y' if direction == 'xy' else 'x'), None)
+            self.drop_future(direction)
         return result
+
+    def drop_future(self, direction):
+        '''Frees the cached future codes of the effect of this direction.'''
+        self._cache.pop(('future', 'y' if direction == 'xy' else 'x'), None)
 
 
 def linear_rate(values):
