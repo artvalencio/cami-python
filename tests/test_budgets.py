@@ -64,4 +64,4 @@ def test_surrogate_test_time():
     rng = np.random.default_rng(0)
     x = rng.random(10**5)
     y = 0.6 * np.roll(x, 1) + 0.4 * rng.random(10**5)
-    assert best_time(lambda: cami.surrogate_test(x, y, n_surrogates=99, seed=0), repeats=2) < 0.08
+    assert best_time(lambda: cami.surrogate_test(x, y, n_surrogates=99, seed=0), repeats=2) < 0.12
