@@ -188,20 +188,15 @@ def pointwise(x,y,method='normalized',x_divs=None,y_divs=None,symbolic_type='equ
         pcami_yx, pte_yx, cami_yx, __ = causal_tables(Sy, Sx)
         te_yx = cami_yx - mutual_info
 
-    #print overall information measures:
-    print('Information values:')
+    #log overall information measures
+    summary = ['Information values:', 'Mutual Information: %s' % mutual_info,
+               'Causal Mutual Information X->Y: %s' % cami_xy]
     if two_sided:
-        print('Mutual Information: ', mutual_info,
-              '\nCausal Mutual Information X->Y: ', cami_xy,
-              '\nCausal Mutual Information Y->X: ', cami_yx,
-              '\n Transfer Entropy X->Y: ', te_xy,
-              '\n Transfer Entropy Y->X: ', te_yx,
-              '\n Directionality Index: ', cami_xy-cami_yx)
-    else:
-        print('Mutual Information: ', mutual_info,
-              '\nCausal Mutual Information X->Y: ', cami_xy,
-              '\n Transfer Entropy X->Y: ', te_xy)
-    print('--------\nGenerating the time-series of pointwise information measures')
+        summary.append('Causal Mutual Information Y->X: %s' % cami_yx)
+    summary.append('Transfer Entropy X->Y: %s' % te_xy)
+    if two_sided:
+        summary += ['Transfer Entropy Y->X: %s' % te_yx, 'Directionality Index: %s' % (cami_xy - cami_yx)]
+    _core.logger.info('\n'.join(summary))
 
     #passing the results to time-series
     lmax = max([lx, lyp, lyf])
@@ -220,7 +215,6 @@ def pointwise(x,y,method='normalized',x_divs=None,y_divs=None,symbolic_type='equ
     if two_sided:
         point_cami_yx, point_te_yx = to_series(words(Sy, Sx), (pcami_yx, pte_yx))
         point_di = point_cami_xy - point_cami_yx
-    print('done!')
 
     #plotting
     if make_plot:

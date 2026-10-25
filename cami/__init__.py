@@ -1,3 +1,5 @@
+import logging as _logging
+
 from .cami import *
 from .entropy import *
 from .joint_entropy import *
@@ -15,3 +17,5 @@ from .cami_rate import *
 from .transfer_entropy_rate import *
 
 
+
+_logging.getLogger('cami').addHandler(_logging.NullHandler())

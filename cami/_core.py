@@ -4,8 +4,12 @@ Everything here is private API: input cleaning, symbolic encoding helpers,
 symbolic-word indexing and the plug-in estimators computed from
 probability tables.
 '''
+import logging
+
 import numpy as np
 import pandas as pd
+
+logger = logging.getLogger('cami')
 
 _LOG_FUNCTIONS = {
     'bit': np.log2, 'bits': np.log2,
@@ -146,7 +150,7 @@ def first_zero_autocorrelation(data):
 def resolve_tau(tau, *series):
     if tau is None:
         tau = max(first_zero_autocorrelation(s) for s in series)
-        print('Selected tau=', tau, ' by the method of first zero of auto-correlation', sep='')
+        logger.info('Selected tau=%d by the method of first zero of auto-correlation', tau)
     return as_int(tau, 'tau')
 
 
