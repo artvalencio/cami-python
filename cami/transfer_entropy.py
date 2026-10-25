@@ -119,5 +119,5 @@ def transfer_entropy(x,y,x_divs=None,y_divs=None,symbolic_type='equal-divs',n_sy
     if not two_sided:
         return te_xy
     ip_xp, ip_yp, ip_yf, ip_ypf, ip_xyp, ip_xypf, __, __, __ = get_prob(Sy, Sx, n_symbols=n_symbols, symbolic_length=symbolic_length, tau=tau)
-    te_yx = _core.cami_from_probs(ip_xp, ip_ypf, ip_xypf, log) - mutual_info
+    te_yx = _core.cami_from_probs(ip_xp, ip_ypf, ip_xypf, log) - _core.mutual_info_from_probs(ip_xp, ip_yp, ip_xyp, log)
     return te_xy, te_yx

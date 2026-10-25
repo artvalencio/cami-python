@@ -58,3 +58,12 @@ def test_units_rescale_bits(x, y, units, factor):
 def test_delay_aligns_lagged_copy(x, y):
     # y[n] = x[n-1]; delay=1 pairs x[n] with y[n+1] = x[n]
     assert cami.mutual_info(x, y, delay=1) == pytest.approx(1.0, abs=TOL)
+
+
+@pytest.mark.parametrize('symbolic_length', [(2, 1, 1), (1, 3, 2)])
+def test_reverse_transfer_entropy_uses_reverse_mutual_information(x, y, symbolic_length):
+    te_xy, te_yx = cami.transfer_entropy(x, y, symbolic_length=symbolic_length, two_sided=True)
+    __, cami_yx = cami.cami(x, y, symbolic_length=symbolic_length, two_sided=True)
+    mi_yx = cami.mutual_info(y, x, symbolic_length=symbolic_length[:2])
+    assert te_yx == pytest.approx(cami_yx - mi_yx, abs=2e-3)  # windows differ slightly
+    assert te_yx >= -1e-12
