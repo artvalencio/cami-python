@@ -106,3 +106,15 @@ def test_progress_callback_can_stop_the_test(coupled):
 
     with pytest.raises(Stop):
         cami.surrogate_test(*coupled, n_surrogates=50, seed=0, progress=stop_after_two)
+
+
+def test_generators_are_created_lazily(coupled):
+    import time
+
+    def stop(done, total):
+        raise KeyboardInterrupt
+
+    start = time.perf_counter()
+    with pytest.raises(KeyboardInterrupt):
+        cami.surrogate_test(*coupled, n_surrogates=10**6, seed=0, progress=stop)
+    assert time.perf_counter() - start < 1.0

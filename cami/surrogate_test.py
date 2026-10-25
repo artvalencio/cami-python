@@ -77,7 +77,9 @@ def surrogate_test(x,y,measure='cami',n_surrogates=100,method='circular',alpha=0
     n = len(x)
     margin = max(1, n // 10)
     #one independent generator per surrogate: results do not depend on n_jobs
-    generators = [np.random.default_rng(s) for s in np.random.SeedSequence(seed).spawn(n_surrogates)]
+    #(spawned one at a time when needed: same children as spawn(n_surrogates))
+    seeds = np.random.SeedSequence(seed)
+    generators = (np.random.default_rng(seeds.spawn(1)[0]) for __ in range(n_surrogates))
 
     def reorder(series, rng):
         if method == 'shuffle':
