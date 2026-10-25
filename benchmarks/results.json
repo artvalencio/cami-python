@@ -1,0 +1,52 @@
+{
+ "baseline": {
+  "auto tau slow sine (N=2e4)": {
+   "peak_mb": 1.6,
+   "time_ms": 844.05
+  },
+  "cami L=1 ns=2": {
+   "peak_mb": 81.0,
+   "time_ms": 187.93
+  },
+  "cami L=3 ns=10": {
+   "peak_mb": 103.52,
+   "time_ms": 411.42
+  },
+  "cami two_sided L=3 ns=4": {
+   "peak_mb": 81.0,
+   "time_ms": 619.05
+  },
+  "cami_rate L_limit=6": {
+   "peak_mb": 97.0,
+   "time_ms": 2355.05
+  },
+  "entropy L=3": {
+   "peak_mb": 56.0,
+   "time_ms": 87.04
+  },
+  "multithread 200 trials x 1000": {
+   "peak_mb": 22.63,
+   "time_ms": 134.55
+  },
+  "mutual_info L=2": {
+   "peak_mb": 81.0,
+   "time_ms": 295.98
+  },
+  "pointwise two_sided L=3 ns=4": {
+   "peak_mb": 145.53,
+   "time_ms": 912.72
+  },
+  "surrogate_test 99 (N=1e5)": {
+   "peak_mb": 10.51,
+   "time_ms": 1166.77
+  },
+  "total_correlation 4 vars L=2": {
+   "peak_mb": 202.0,
+   "time_ms": 5027.23
+  },
+  "transfer_entropy two_sided L=2": {
+   "peak_mb": 81.0,
+   "time_ms": 727.66
+  }
+ }
+}
